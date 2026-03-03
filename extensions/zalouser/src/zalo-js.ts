@@ -199,18 +199,22 @@ function resolveInboundTimestamp(rawTs: unknown): number {
   return parsed > 1_000_000_000_000 ? parsed : parsed * 1000;
 }
 
-function extractMentionIds(raw: unknown): string[] {
-  if (!Array.isArray(raw)) {
+function extractMentionIds(rawMentions: unknown): string[] {
+  if (!Array.isArray(rawMentions)) {
     return [];
   }
-  return raw
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") {
-        return "";
-      }
-      return toNumberId((entry as { uid?: unknown }).uid);
-    })
-    .filter(Boolean);
+  const sink = new Set<string>();
+  for (const entry of rawMentions) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const record = entry as { uid?: unknown };
+    const id = toNumberId(record.uid);
+    if (id) {
+      sink.add(id);
+    }
+  }
+  return Array.from(sink);
 }
 
 function resolveGroupNameFromMessageData(data: Record<string, unknown>): string | undefined {
@@ -649,8 +653,7 @@ export async function getZaloUserInfo(profileInput?: string | null): Promise<Zca
   const profile = normalizeProfile(profileInput);
   const api = await ensureApi(profile);
   const info = await api.fetchAccountInfo();
-  const user =
-    info && typeof info === "object" && "profile" in info ? (info.profile as User) : (info as User);
+  const user = info.profile as User;
   if (!user?.userId) {
     return null;
   }
@@ -890,13 +893,32 @@ export async function sendZaloTypingEvent(
   const type = options.isGroup ? ThreadType.Group : ThreadType.User;
   if ("sendTypingEvent" in api && typeof api.sendTypingEvent === "function") {
     await (api as API & ApiTypingCapability).sendTypingEvent(trimmedThreadId, type);
+    return;
   }
+  throw new Error("Zalo typing indicator is not supported by current API session");
 }
 
 async function resolveOwnUserId(api: API): Promise<string> {
-  const info = await api.fetchAccountInfo();
-  const profile = "profile" in info ? info.profile : info;
-  return toNumberId(profile.userId);
+  try {
+    const info = await api.fetchAccountInfo();
+    const resolved = toNumberId(info.profile?.userId);
+    if (resolved) {
+      return resolved;
+    }
+  } catch {
+    // Fall back to getOwnId when account info shape changes.
+  }
+
+  try {
+    const ownId = toNumberId(api.getOwnId());
+    if (ownId) {
+      return ownId;
+    }
+  } catch {
+    // Ignore fallback probe failures and keep mention detection conservative.
+  }
+
+  return "";
 }
 
 export async function sendZaloReaction(params: {

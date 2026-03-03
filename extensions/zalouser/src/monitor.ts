@@ -345,10 +345,11 @@ async function processMessage(
         explicit: explicitMention,
       })
     : true;
+  const canDetectMention = mentionRegexes.length > 0 || explicitMention.canResolveExplicit;
   const mentionGate = resolveMentionGatingWithBypass({
     isGroup,
     requireMention,
-    canDetectMention: mentionRegexes.length > 0 || explicitMention.canResolveExplicit,
+    canDetectMention,
     wasMentioned,
     implicitMention: message.implicitMention === true,
     hasAnyMention: explicitMention.hasAnyMention,
@@ -359,6 +360,13 @@ async function processMessage(
     hasControlCommand,
     commandAuthorized: commandAuthorized === true,
   });
+  if (isGroup && requireMention && !canDetectMention && !mentionGate.effectiveWasMentioned) {
+    runtime.error?.(
+      `[${account.accountId}] zalouser mention required but detection unavailable ` +
+        `(missing mention regexes and bot self id); dropping group ${chatId}`,
+    );
+    return;
+  }
   if (isGroup && mentionGate.shouldSkip) {
     logVerbose(core, runtime, `zalouser: skip group ${chatId} (mention required, not mentioned)`);
     return;
@@ -438,6 +446,9 @@ async function processMessage(
       });
     },
     onStartError: (err) => {
+      runtime.error?.(
+        `[${account.accountId}] zalouser typing start failed for ${chatId}: ${String(err)}`,
+      );
       logVerbose(core, runtime, `zalouser typing failed for ${chatId}: ${String(err)}`);
     },
   });
