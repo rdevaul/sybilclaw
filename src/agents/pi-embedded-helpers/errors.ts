@@ -260,6 +260,12 @@ export function classifyFailoverReasonFromHttpStatus(
   }
 
   if (status === 402) {
+    // Some providers (e.g. Anthropic Claude Max plan) surface temporary
+    // usage/rate-limit failures as HTTP 402. Prefer the explicit rate-limit
+    // signal from the payload text when available (#30484).
+    if (message && isRateLimitErrorMessage(message)) {
+      return "rate_limit";
+    }
     return "billing";
   }
   if (status === 429) {
