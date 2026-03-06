@@ -43,7 +43,12 @@ import { findLegacyConfigIssues } from "./legacy.js";
 import { applyMergePatch } from "./merge-patch.js";
 import { normalizeExecSafeBinProfilesInConfig } from "./normalize-exec-safe-bin.js";
 import { normalizeConfigPaths } from "./normalize-paths.js";
-import { resolveConfigPath, resolveDefaultConfigCandidates, resolveStateDir } from "./paths.js";
+import {
+  resolveConfigPath,
+  resolveDefaultConfigCandidates,
+  resolveOperatorPolicyPath,
+  resolveStateDir,
+} from "./paths.js";
 import { isBlockedObjectKey } from "./prototype-keys.js";
 import { applyConfigOverrides } from "./runtime-overrides.js";
 import type { OpenClawConfig, ConfigFileSnapshot, LegacyConfigIssue } from "./types.js";
@@ -631,6 +636,17 @@ type ConfigReadResolution = {
   envSnapshotForRestore: Record<string, string | undefined>;
 };
 
+type OperatorPolicyState = {
+  path: string;
+  exists: boolean;
+  valid: boolean;
+  issues: ConfigFileSnapshot["issues"];
+  warnings: ConfigFileSnapshot["warnings"];
+  lockedPaths: string[];
+  lockedPathSegments: string[][];
+  resolvedConfig: OpenClawConfig;
+};
+
 function resolveConfigIncludesForRead(
   parsed: unknown,
   configPath: string,
@@ -663,6 +679,215 @@ function resolveConfigForRead(
     // Capture env snapshot after substitution for write-time ${VAR} restoration.
     envSnapshotForRestore: { ...env } as Record<string, string | undefined>,
   };
+}
+
+function resolvePolicyConfigForRead(resolvedIncludes: unknown, env: NodeJS.ProcessEnv): unknown {
+  return resolveConfigEnvVars(resolvedIncludes, env);
+}
+
+function formatConfigPathSegments(pathSegments: string[]): string {
+  if (pathSegments.length === 0) {
+    return "<root>";
+  }
+  let output = "";
+  for (const segment of pathSegments) {
+    if (isNumericPathSegment(segment)) {
+      output += `[${segment}]`;
+    } else {
+      output = output ? `${output}.${segment}` : segment;
+    }
+  }
+  return output;
+}
+
+function collectLockedPolicyPaths(value: unknown, currentPath: string[], output: string[][]): void {
+  if (Array.isArray(value)) {
+    if (currentPath.length > 0) {
+      output.push(currentPath);
+    }
+    return;
+  }
+  if (isPlainObject(value)) {
+    const entries = Object.entries(value);
+    if (entries.length === 0) {
+      if (currentPath.length > 0) {
+        output.push(currentPath);
+      }
+      return;
+    }
+    for (const [key, child] of entries) {
+      if (isBlockedObjectKey(key)) {
+        continue;
+      }
+      collectLockedPolicyPaths(child, [...currentPath, key], output);
+    }
+    return;
+  }
+  if (currentPath.length > 0) {
+    output.push(currentPath);
+  }
+}
+
+function getValueAtPath(
+  root: unknown,
+  pathSegments: string[],
+): { found: boolean; value?: unknown } {
+  let current = root;
+  for (const segment of pathSegments) {
+    if (Array.isArray(current)) {
+      if (!isNumericPathSegment(segment)) {
+        return { found: false };
+      }
+      const index = Number.parseInt(segment, 10);
+      if (!Number.isFinite(index) || index < 0 || index >= current.length) {
+        return { found: false };
+      }
+      current = current[index];
+      continue;
+    }
+    if (!isPlainObject(current) || !hasOwnObjectKey(current, segment)) {
+      return { found: false };
+    }
+    current = current[segment];
+  }
+  return { found: true, value: current };
+}
+
+function prefixPolicyIssues(
+  issues: ConfigFileSnapshot["issues"],
+  prefix = "operatorPolicy",
+): ConfigFileSnapshot["issues"] {
+  return issues.map((issue) => ({
+    ...issue,
+    path: issue.path ? `${prefix}.${issue.path}` : prefix,
+  }));
+}
+
+function createOperatorPolicyLockError(lockedPaths: string[]): Error {
+  const message =
+    lockedPaths.length === 1
+      ? `Config path locked by operator policy: ${lockedPaths[0]}`
+      : `Config paths locked by operator policy: ${lockedPaths.join(", ")}`;
+  const error = new Error(message) as Error & {
+    code?: string;
+    lockedPaths?: string[];
+  };
+  error.code = "OPERATOR_POLICY_LOCKED";
+  error.lockedPaths = lockedPaths;
+  return error;
+}
+
+function readOperatorPolicyState(deps: Required<ConfigIoDeps>): OperatorPolicyState {
+  const path = resolveOperatorPolicyPath(deps.env, resolveStateDir(deps.env, deps.homedir));
+  const exists = deps.fs.existsSync(path);
+  if (!exists) {
+    return {
+      path,
+      exists: false,
+      valid: true,
+      issues: [],
+      warnings: [],
+      lockedPaths: [],
+      lockedPathSegments: [],
+      resolvedConfig: {},
+    };
+  }
+
+  try {
+    const raw = deps.fs.readFileSync(path, "utf-8");
+    const parsedRes = parseConfigJson5(raw, deps.json5);
+    if (!parsedRes.ok) {
+      return {
+        path,
+        exists: true,
+        valid: false,
+        issues: [{ path: "", message: `JSON5 parse failed: ${parsedRes.error}` }],
+        warnings: [],
+        lockedPaths: [],
+        lockedPathSegments: [],
+        resolvedConfig: {},
+      };
+    }
+
+    let resolved: unknown;
+    try {
+      resolved = resolveConfigIncludesForRead(parsedRes.parsed, path, deps);
+    } catch (err) {
+      const message =
+        err instanceof ConfigIncludeError
+          ? err.message
+          : `Include resolution failed: ${String(err)}`;
+      return {
+        path,
+        exists: true,
+        valid: false,
+        issues: [{ path: "", message }],
+        warnings: [],
+        lockedPaths: [],
+        lockedPathSegments: [],
+        resolvedConfig: {},
+      };
+    }
+
+    let resolvedConfigRaw: unknown;
+    try {
+      resolvedConfigRaw = resolvePolicyConfigForRead(resolved, deps.env);
+    } catch (err) {
+      const message =
+        err instanceof MissingEnvVarError
+          ? err.message
+          : `Env var substitution failed: ${String(err)}`;
+      return {
+        path,
+        exists: true,
+        valid: false,
+        issues: [{ path: "", message }],
+        warnings: [],
+        lockedPaths: [],
+        lockedPathSegments: [],
+        resolvedConfig: {},
+      };
+    }
+
+    const validated = validateConfigObjectWithPlugins(resolvedConfigRaw);
+    if (!validated.ok) {
+      return {
+        path,
+        exists: true,
+        valid: false,
+        issues: validated.issues,
+        warnings: validated.warnings,
+        lockedPaths: [],
+        lockedPathSegments: [],
+        resolvedConfig: {},
+      };
+    }
+
+    const lockedPathSegments: string[][] = [];
+    collectLockedPolicyPaths(validated.config, [], lockedPathSegments);
+    const lockedPaths = lockedPathSegments.map((segments) => formatConfigPathSegments(segments));
+    return {
+      path,
+      exists: true,
+      valid: true,
+      issues: [],
+      warnings: validated.warnings,
+      lockedPaths,
+      lockedPathSegments,
+      resolvedConfig: validated.config,
+    };
+  } catch (err) {
+    return {
+      path,
+      exists: true,
+      valid: false,
+      issues: [{ path: "", message: `read failed: ${String(err)}` }],
+      warnings: [],
+      lockedPaths: [],
+      lockedPathSegments: [],
+      resolvedConfig: {},
+    };
+  }
 }
 
 type ReadConfigFileSnapshotInternalResult = {
@@ -725,19 +950,62 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
         (error as { code?: string; details?: string }).details = details;
         throw error;
       }
+      const operatorPolicy = readOperatorPolicyState(deps);
+      if (!operatorPolicy.valid) {
+        const details = prefixPolicyIssues(operatorPolicy.issues)
+          .map((iss) => `- ${iss.path || "<root>"}: ${iss.message}`)
+          .join("\n");
+        if (!loggedInvalidConfigs.has(operatorPolicy.path)) {
+          loggedInvalidConfigs.add(operatorPolicy.path);
+          deps.logger.error(`Invalid operator policy at ${operatorPolicy.path}:\n${details}`);
+        }
+        const error = new Error(`Invalid operator policy at ${operatorPolicy.path}:\n${details}`);
+        (error as { code?: string; details?: string }).code = "INVALID_CONFIG";
+        (error as { code?: string; details?: string }).details = details;
+        throw error;
+      }
+      const effectiveConfigRaw = operatorPolicy.exists
+        ? applyMergePatch(resolvedConfig, operatorPolicy.resolvedConfig, {
+            mergeObjectArraysById: true,
+          })
+        : resolvedConfig;
+      const effectiveValidated = validateConfigObjectWithPlugins(effectiveConfigRaw);
+      if (!effectiveValidated.ok) {
+        const details = effectiveValidated.issues
+          .map((iss) => `- ${iss.path || "<root>"}: ${iss.message}`)
+          .join("\n");
+        if (!loggedInvalidConfigs.has(operatorPolicy.path)) {
+          loggedInvalidConfigs.add(operatorPolicy.path);
+          deps.logger.error(`Operator policy merge invalid at ${operatorPolicy.path}:\n${details}`);
+        }
+        const error = new Error(
+          `Operator policy merge invalid at ${operatorPolicy.path}:\n${details}`,
+        );
+        (error as { code?: string; details?: string }).code = "INVALID_CONFIG";
+        (error as { code?: string; details?: string }).details = details;
+        throw error;
+      }
       if (validated.warnings.length > 0) {
         const details = validated.warnings
           .map((iss) => `- ${iss.path || "<root>"}: ${iss.message}`)
           .join("\n");
         deps.logger.warn(`Config warnings:\\n${details}`);
       }
-      warnIfConfigFromFuture(validated.config, deps.logger);
+      if (operatorPolicy.warnings.length > 0) {
+        const details = prefixPolicyIssues(operatorPolicy.warnings)
+          .map((iss) => `- ${iss.path || "<root>"}: ${iss.message}`)
+          .join("\n");
+        deps.logger.warn(`Operator policy warnings:\n${details}`);
+      }
+      warnIfConfigFromFuture(effectiveValidated.config, deps.logger);
       const cfg = applyTalkConfigNormalization(
         applyModelDefaults(
           applyCompactionDefaults(
             applyContextPruningDefaults(
               applyAgentDefaults(
-                applySessionDefaults(applyLoggingDefaults(applyMessageDefaults(validated.config))),
+                applySessionDefaults(
+                  applyLoggingDefaults(applyMessageDefaults(effectiveValidated.config)),
+                ),
               ),
             ),
           ),
@@ -819,20 +1087,38 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
 
   async function readConfigFileSnapshotInternal(): Promise<ReadConfigFileSnapshotInternalResult> {
     maybeLoadDotEnvForConfig(deps.env);
+    const operatorPolicy = readOperatorPolicyState(deps);
     const exists = deps.fs.existsSync(configPath);
     if (!exists) {
+      const policyIssues = operatorPolicy.valid ? [] : prefixPolicyIssues(operatorPolicy.issues);
+      const policyWarnings = operatorPolicy.valid
+        ? []
+        : prefixPolicyIssues(operatorPolicy.warnings);
       const hash = hashConfigRaw(null);
-      const config = applyTalkApiKey(
-        applyTalkConfigNormalization(
-          applyModelDefaults(
-            applyCompactionDefaults(
-              applyContextPruningDefaults(
-                applyAgentDefaults(applySessionDefaults(applyMessageDefaults({}))),
+      const mergedRaw = operatorPolicy.valid
+        ? applyMergePatch({}, operatorPolicy.resolvedConfig, {
+            mergeObjectArraysById: true,
+          })
+        : {};
+      const mergedValidated = validateConfigObjectWithPlugins(mergedRaw);
+      const valid = operatorPolicy.valid && mergedValidated.ok;
+      const issues = [...policyIssues, ...(mergedValidated.ok ? [] : mergedValidated.issues)];
+      const warnings = [...policyWarnings, ...(mergedValidated.ok ? mergedValidated.warnings : [])];
+      const config = valid
+        ? applyTalkApiKey(
+            applyTalkConfigNormalization(
+              applyModelDefaults(
+                applyCompactionDefaults(
+                  applyContextPruningDefaults(
+                    applyAgentDefaults(
+                      applySessionDefaults(applyMessageDefaults(mergedValidated.config)),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      );
+          )
+        : {};
       const legacyIssues: LegacyConfigIssue[] = [];
       return {
         snapshot: {
@@ -841,12 +1127,20 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
           raw: null,
           parsed: {},
           resolved: {},
-          valid: true,
+          valid,
           config,
           hash,
-          issues: [],
-          warnings: [],
+          issues,
+          warnings,
           legacyIssues,
+          policy: {
+            path: operatorPolicy.path,
+            exists: operatorPolicy.exists,
+            valid: operatorPolicy.valid,
+            lockedPaths: operatorPolicy.lockedPaths,
+            issues: operatorPolicy.issues,
+            warnings: operatorPolicy.warnings,
+          },
         },
       };
     }
@@ -869,6 +1163,14 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
             issues: [{ path: "", message: `JSON5 parse failed: ${parsedRes.error}` }],
             warnings: [],
             legacyIssues: [],
+            policy: {
+              path: operatorPolicy.path,
+              exists: operatorPolicy.exists,
+              valid: operatorPolicy.valid,
+              lockedPaths: operatorPolicy.lockedPaths,
+              issues: operatorPolicy.issues,
+              warnings: operatorPolicy.warnings,
+            },
           },
         };
       }
@@ -895,6 +1197,14 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
             issues: [{ path: "", message }],
             warnings: [],
             legacyIssues: [],
+            policy: {
+              path: operatorPolicy.path,
+              exists: operatorPolicy.exists,
+              valid: operatorPolicy.valid,
+              lockedPaths: operatorPolicy.lockedPaths,
+              issues: operatorPolicy.issues,
+              warnings: operatorPolicy.warnings,
+            },
           },
         };
       }
@@ -920,6 +1230,14 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
             issues: [{ path: "", message }],
             warnings: [],
             legacyIssues: [],
+            policy: {
+              path: operatorPolicy.path,
+              exists: operatorPolicy.exists,
+              valid: operatorPolicy.valid,
+              lockedPaths: operatorPolicy.lockedPaths,
+              issues: operatorPolicy.issues,
+              warnings: operatorPolicy.warnings,
+            },
           },
         };
       }
@@ -928,6 +1246,32 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
       // Detect legacy keys on resolved config, but only mark source-literal legacy
       // entries (for auto-migration) when they are present in the parsed source.
       const legacyIssues = findLegacyConfigIssues(resolvedConfigRaw, parsedRes.parsed);
+
+      if (!operatorPolicy.valid) {
+        return {
+          snapshot: {
+            path: configPath,
+            exists: true,
+            raw,
+            parsed: parsedRes.parsed,
+            resolved: coerceConfig(resolvedConfigRaw),
+            valid: false,
+            config: coerceConfig(resolvedConfigRaw),
+            hash,
+            issues: prefixPolicyIssues(operatorPolicy.issues),
+            warnings: prefixPolicyIssues(operatorPolicy.warnings),
+            legacyIssues,
+            policy: {
+              path: operatorPolicy.path,
+              exists: operatorPolicy.exists,
+              valid: false,
+              lockedPaths: operatorPolicy.lockedPaths,
+              issues: operatorPolicy.issues,
+              warnings: operatorPolicy.warnings,
+            },
+          },
+        };
+      }
 
       const validated = validateConfigObjectWithPlugins(resolvedConfigRaw);
       if (!validated.ok) {
@@ -944,17 +1288,62 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
             issues: validated.issues,
             warnings: validated.warnings,
             legacyIssues,
+            policy: {
+              path: operatorPolicy.path,
+              exists: operatorPolicy.exists,
+              valid: operatorPolicy.valid,
+              lockedPaths: operatorPolicy.lockedPaths,
+              issues: operatorPolicy.issues,
+              warnings: operatorPolicy.warnings,
+            },
+          },
+        };
+      }
+      const effectiveConfigRaw = operatorPolicy.exists
+        ? applyMergePatch(resolvedConfigRaw, operatorPolicy.resolvedConfig, {
+            mergeObjectArraysById: true,
+          })
+        : resolvedConfigRaw;
+      const effectiveValidated = validateConfigObjectWithPlugins(effectiveConfigRaw);
+      if (!effectiveValidated.ok) {
+        return {
+          snapshot: {
+            path: configPath,
+            exists: true,
+            raw,
+            parsed: parsedRes.parsed,
+            resolved: coerceConfig(resolvedConfigRaw),
+            valid: false,
+            config: coerceConfig(effectiveConfigRaw),
+            hash,
+            issues: effectiveValidated.issues,
+            warnings: [
+              ...validated.warnings,
+              ...operatorPolicy.warnings,
+              ...effectiveValidated.warnings,
+            ],
+            legacyIssues,
+            policy: {
+              path: operatorPolicy.path,
+              exists: operatorPolicy.exists,
+              valid: operatorPolicy.valid,
+              lockedPaths: operatorPolicy.lockedPaths,
+              issues: operatorPolicy.issues,
+              warnings: operatorPolicy.warnings,
+            },
           },
         };
       }
 
-      warnIfConfigFromFuture(validated.config, deps.logger);
+      warnIfConfigFromFuture(effectiveValidated.config, deps.logger);
       const snapshotConfig = normalizeConfigPaths(
         applyTalkApiKey(
           applyTalkConfigNormalization(
             applyModelDefaults(
               applyAgentDefaults(
-                applySessionDefaults(applyLoggingDefaults(applyMessageDefaults(validated.config))),
+                applySessionDefaults(
+                  applyLoggingDefaults(applyMessageDefaults(effectiveValidated.config)),
+                ),
               ),
             ),
           ),
@@ -974,8 +1363,20 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
           config: snapshotConfig,
           hash,
           issues: [],
-          warnings: validated.warnings,
+          warnings: [
+            ...validated.warnings,
+            ...operatorPolicy.warnings,
+            ...effectiveValidated.warnings,
+          ],
           legacyIssues,
+          policy: {
+            path: operatorPolicy.path,
+            exists: operatorPolicy.exists,
+            valid: operatorPolicy.valid,
+            lockedPaths: operatorPolicy.lockedPaths,
+            issues: operatorPolicy.issues,
+            warnings: operatorPolicy.warnings,
+          },
         },
         envSnapshotForRestore: readResolution.envSnapshotForRestore,
       };
@@ -1012,6 +1413,14 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
           issues: [{ path: "", message }],
           warnings: [],
           legacyIssues: [],
+          policy: {
+            path: operatorPolicy.path,
+            exists: operatorPolicy.exists,
+            valid: operatorPolicy.valid,
+            lockedPaths: operatorPolicy.lockedPaths,
+            issues: operatorPolicy.issues,
+            warnings: operatorPolicy.warnings,
+          },
         },
       };
     }
@@ -1037,6 +1446,14 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
     clearConfigCache();
     let persistCandidate: unknown = cfg;
     const { snapshot } = await readConfigFileSnapshotInternal();
+    const operatorPolicy = readOperatorPolicyState(deps);
+    if (!operatorPolicy.valid) {
+      const prefixedIssues = prefixPolicyIssues(operatorPolicy.issues);
+      const details = prefixedIssues
+        .map((issue) => `${issue.path || "<root>"}: ${issue.message}`)
+        .join("; ");
+      throw new Error(`Invalid operator policy at ${operatorPolicy.path}: ${details}`);
+    }
     let envRefMap: Map<string, string> | null = null;
     let changedPaths: Set<string> | null = null;
     if (snapshot.valid && snapshot.exists) {
@@ -1063,6 +1480,22 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
         }
       } catch {
         envRefMap = null;
+      }
+    }
+
+    if (operatorPolicy.valid && operatorPolicy.exists) {
+      const conflictingLockedPaths = operatorPolicy.lockedPathSegments
+        .filter((pathSegments) => {
+          const candidateValue = getValueAtPath(persistCandidate, pathSegments);
+          if (!candidateValue.found) {
+            return false;
+          }
+          const policyValue = getValueAtPath(operatorPolicy.resolvedConfig, pathSegments);
+          return !policyValue.found || !isDeepStrictEqual(candidateValue.value, policyValue.value);
+        })
+        .map((pathSegments) => formatConfigPathSegments(pathSegments));
+      if (conflictingLockedPaths.length > 0) {
+        throw createOperatorPolicyLockError(conflictingLockedPaths);
       }
     }
 
@@ -1117,8 +1550,12 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
         ? (restoreEnvRefsFromMap(cfgToWrite, "", envRefMap, changedPaths) as OpenClawConfig)
         : cfgToWrite;
     let outputConfig = outputConfigBase;
-    if (options.unsetPaths?.length) {
-      for (const unsetPath of options.unsetPaths) {
+    const effectiveUnsetPaths = [
+      ...(options.unsetPaths ?? []),
+      ...(operatorPolicy.valid ? operatorPolicy.lockedPathSegments : []),
+    ];
+    if (effectiveUnsetPaths.length) {
+      for (const unsetPath of effectiveUnsetPaths) {
         if (!Array.isArray(unsetPath) || unsetPath.length === 0) {
           continue;
         }
