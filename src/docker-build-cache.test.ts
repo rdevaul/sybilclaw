@@ -86,12 +86,20 @@ describe("docker build cache layout", () => {
     const dockerfile = await readRepoFile("scripts/e2e/Dockerfile");
     const installIndex = dockerfile.indexOf("pnpm install --frozen-lockfile");
 
+    expect(
+      dockerfile.indexOf("COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./"),
+    ).toBeLessThan(installIndex);
     expect(dockerfile.indexOf("COPY ui/package.json ./ui/package.json")).toBeLessThan(installIndex);
     expect(
       dockerfile.indexOf(
         "COPY extensions/memory-core/package.json ./extensions/memory-core/package.json",
       ),
     ).toBeLessThan(installIndex);
+    expect(
+      dockerfile.indexOf(
+        "COPY tsconfig.json tsconfig.plugin-sdk.dts.json tsdown.config.ts vitest.config.ts vitest.e2e.config.ts openclaw.mjs ./",
+      ),
+    ).toBeGreaterThan(installIndex);
     expect(dockerfile.indexOf("COPY src ./src")).toBeGreaterThan(installIndex);
     expect(dockerfile.indexOf("COPY test ./test")).toBeGreaterThan(installIndex);
     expect(dockerfile.indexOf("COPY scripts ./scripts")).toBeGreaterThan(installIndex);
