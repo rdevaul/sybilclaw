@@ -36,6 +36,7 @@ Relevant prerequisite work that has landed:
 - static consumers can now read host-owned resolved-extension data
 - config doc baseline generation now uses the same host-owned resolved-extension data path
 - channel, provider, HTTP-route, gateway-method, tool, CLI, service, command, context-engine, and hook registration normalization now has a host-owned helper boundary
+- context-engine registration and runtime resolution now have a host-owned helper boundary in `src/extension-host/context-engine-runtime.ts`
 - loader cache key construction and registry cache control now have a host-owned helper boundary
 - loader provenance helpers now have a host-owned helper boundary
 - loader duplicate-order policy now has a host-owned helper boundary

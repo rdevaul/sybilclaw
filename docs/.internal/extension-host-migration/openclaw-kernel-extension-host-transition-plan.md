@@ -71,6 +71,7 @@ What has landed:
 - loader final cache, readiness promotion, and activation finalization now routes through `src/extension-host/loader-finalize.ts`
 - runtime registration normalization has started in `src/extension-host/runtime-registrations.ts` for channel, provider, HTTP-route, gateway-method, tool, CLI, service, command, context-engine, and hook registrations
 - low-risk runtime compatibility writes for channel, provider, gateway-method, HTTP-route, tool, CLI, service, command, context-engine, and hook registrations now route through `src/extension-host/registry-writes.ts`
+- context-engine registration and runtime resolution now route through `src/extension-host/context-engine-runtime.ts` while `src/context-engine/registry.ts` remains the compatibility facade
 - legacy internal-hook bridging and typed prompt-injection compatibility policy now route through `src/extension-host/hook-compat.ts`
 - compatibility `OpenClawPluginApi` composition and logger shaping now route through `src/extension-host/plugin-api.ts`
 - compatibility plugin-registry facade ownership now routes through `src/extension-host/plugin-registry.ts`
@@ -219,6 +220,7 @@ Committed implementation slices so far:
 - `24fca48453` `Docs: refresh channel storage status`
 - `961015f08c` `Channels: finish message-channel host lookup`
 - `4c7f62649b` `Plugins: extract command runtime`
+- `17b7f6a3e4` `Context: extract extension host engine runtime`
 - `89414ed857` `Docs: track extension host migration internally`
 - `d8af1eceaf` `Docs: refresh extension host migration status`
 
