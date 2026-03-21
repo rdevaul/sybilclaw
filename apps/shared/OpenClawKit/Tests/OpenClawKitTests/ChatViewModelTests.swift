@@ -553,6 +553,49 @@ extension TestChatTransportState {
         }
     }
 
+    @Test func preservesRepeatedOptimisticUserMessagesWithIdenticalContentDuringRefresh() async throws {
+        let sessionId = "sess-main"
+        let now = Date().timeIntervalSince1970 * 1000
+        let history1 = historyPayload(sessionId: sessionId)
+        let history2 = historyPayload(
+            sessionId: sessionId,
+            messages: [
+                chatTextMessage(
+                    role: "user",
+                    text: "retry",
+                    timestamp: now + 5_000),
+                chatTextMessage(
+                    role: "assistant",
+                    text: "first answer",
+                    timestamp: now + 6_000),
+            ])
+
+        let (transport, vm) = await makeViewModel(historyResponses: [history1, history2, history2])
+        try await loadAndWaitBootstrap(vm: vm, sessionId: sessionId)
+        try await sendMessageAndEmitFinal(
+            transport: transport,
+            vm: vm,
+            text: "retry")
+        try await sendMessageAndEmitFinal(
+            transport: transport,
+            vm: vm,
+            text: "retry")
+
+        try await waitUntil("repeated optimistic user message is preserved") {
+            await MainActor.run {
+                let retryMessages = vm.messages.filter { message in
+                    message.role == "user" &&
+                        message.content.compactMap(\.text).joined(separator: "\n") == "retry"
+                }
+                let hasAssistant = vm.messages.contains { message in
+                    message.role == "assistant" &&
+                        message.content.compactMap(\.text).joined(separator: "\n") == "first answer"
+                }
+                return hasAssistant && retryMessages.count == 2
+            }
+        }
+    }
+
     @Test func acceptsCanonicalSessionKeyEventsForOwnPendingRun() async throws {
         let history1 = historyPayload()
         let history2 = historyPayload(

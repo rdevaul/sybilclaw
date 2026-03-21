@@ -376,9 +376,16 @@ public final class OpenClawChatViewModel {
         guard !previous.isEmpty else { return incoming }
         guard !incoming.isEmpty else { return previous }
 
+        func countKeys(_ keys: [String]) -> [String: Int] {
+            keys.reduce(into: [:]) { counts, key in
+                counts[key, default: 0] += 1
+            }
+        }
+
         var reconciled = Self.reconcileMessageIDs(previous: previous, incoming: incoming)
         let incomingIdentityKeys = Set(reconciled.compactMap(Self.messageIdentityKey(for:)))
-        let incomingUserRefreshKeys = Set(reconciled.compactMap(Self.userRefreshIdentityKey(for:)))
+        var remainingIncomingUserRefreshCounts = countKeys(
+            reconciled.compactMap(Self.userRefreshIdentityKey(for:)))
 
         var lastMatchedPreviousIndex: Int?
         for (index, message) in previous.enumerated() {
@@ -389,8 +396,10 @@ public final class OpenClawChatViewModel {
                 continue
             }
             if let userKey = Self.userRefreshIdentityKey(for: message),
-               incomingUserRefreshKeys.contains(userKey)
+               let remaining = remainingIncomingUserRefreshCounts[userKey],
+               remaining > 0
             {
+                remainingIncomingUserRefreshCounts[userKey] = remaining - 1
                 lastMatchedPreviousIndex = index
             }
         }
@@ -401,7 +410,12 @@ public final class OpenClawChatViewModel {
             .filter { message in
                 guard message.role.lowercased() == "user" else { return false }
                 guard let key = Self.userRefreshIdentityKey(for: message) else { return false }
-                return !incomingUserRefreshKeys.contains(key)
+                let remaining = remainingIncomingUserRefreshCounts[key] ?? 0
+                if remaining > 0 {
+                    remainingIncomingUserRefreshCounts[key] = remaining - 1
+                    return false
+                }
+                return true
             }
 
         guard !trailingUserMessages.isEmpty else {

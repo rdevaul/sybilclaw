@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   OpenClawPluginCommandDefinition,
   PluginCommandContext,
-} from "../../src/plugins/types.js";
+} from "openclaw/plugin-sdk/core";
 import { createTestPluginApi } from "../../test/helpers/extensions/plugin-api.js";
 import type { OpenClawPluginApi } from "./api.js";
 
