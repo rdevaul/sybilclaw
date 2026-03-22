@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AcpRuntimeError } from "../../acp/runtime/errors.js";
 import type { OpenClawConfig } from "../../config/config.js";
 import type { SessionBindingRecord } from "../../infra/outbound/session-binding-service.js";
+import { createTaskRecord, resetTaskRegistryForTests } from "../../tasks/task-registry.js";
 
 const hoisted = vi.hoisted(() => {
   const callGatewayMock = vi.fn();
@@ -216,9 +217,9 @@ function createAcpSessionEntry(options?: {
   identity?: AcpSessionIdentity;
 }) {
   const sessionKey = options?.sessionKey ?? defaultAcpSessionKey;
-  return {
-    sessionKey,
-    storeSessionKey: sessionKey,
+  const entry = {
+    sessionId: "sess-1",
+    updatedAt: Date.now(),
     acp: {
       backend: "acpx",
       agent: "codex",
@@ -228,6 +229,12 @@ function createAcpSessionEntry(options?: {
       state: options?.state ?? "idle",
       lastActivityAt: Date.now(),
     },
+  };
+  return {
+    sessionKey,
+    storeSessionKey: sessionKey,
+    entry,
+    acp: entry.acp,
   };
 }
 
@@ -353,6 +360,7 @@ async function runTelegramDmAcpCommand(commandBody: string, cfg: OpenClawConfig 
 describe("/acp command", () => {
   beforeEach(() => {
     acpManagerTesting.resetAcpSessionManagerForTests();
+    resetTaskRegistryForTests();
     hoisted.listAcpSessionEntriesMock.mockReset().mockResolvedValue([]);
     hoisted.callGatewayMock.mockReset().mockResolvedValue({ ok: true });
     hoisted.readAcpSessionEntryMock.mockReset().mockReturnValue(null);
@@ -761,10 +769,21 @@ describe("/acp command", () => {
         lastUpdatedAt: Date.now(),
       },
     });
+    createTaskRecord({
+      source: "sessions_spawn",
+      runtime: "acp",
+      requesterSessionKey: "agent:main:main",
+      childSessionKey: defaultAcpSessionKey,
+      runId: "run-acp-status",
+      task: "Investigate something",
+      status: "running",
+      deliveryStatus: "not_applicable",
+    });
     const result = await runThreadAcpCommand("/acp status", baseCfg);
 
     expect(result?.reply?.text).toContain("ACP status:");
     expect(result?.reply?.text).toContain(`session: ${defaultAcpSessionKey}`);
+    expect(result?.reply?.text).toContain("taskStatus: running");
     expect(result?.reply?.text).toContain("agent session id: codex-sid-1");
     expect(result?.reply?.text).toContain("acpx session id: acpx-sid-1");
     expect(result?.reply?.text).toContain("capabilities:");

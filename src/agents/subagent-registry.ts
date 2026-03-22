@@ -15,6 +15,11 @@ import { callGateway } from "../gateway/call.js";
 import { onAgentEvent } from "../infra/agent-events.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { defaultRuntime } from "../runtime.js";
+import {
+  createTaskRecord,
+  updateTaskDeliveryByRunId,
+  updateTaskStateByRunId,
+} from "../tasks/task-registry.js";
 import { type DeliveryContext, normalizeDeliveryContext } from "../utils/delivery-context.js";
 import { ensureRuntimePluginsLoaded } from "./runtime-plugins.js";
 import { resetAnnounceQueuesForTests } from "./subagent-announce-queue.js";
@@ -498,6 +503,20 @@ async function completeSubagentRun(params: {
   if (mutated) {
     persistSubagentRuns();
   }
+  updateTaskStateByRunId({
+    runId: entry.runId,
+    status:
+      params.outcome.status === "ok"
+        ? "done"
+        : params.outcome.status === "timeout"
+          ? "timed_out"
+          : "failed",
+    startedAt: entry.startedAt,
+    endedAt: entry.endedAt,
+    lastEventAt: entry.endedAt ?? Date.now(),
+    error: params.outcome.status === "error" ? params.outcome.error : undefined,
+    resultPreview: entry.frozenResultText ?? undefined,
+  });
 
   const suppressedForSteerRestart = suppressAnnounceForSteerRestart(entry);
   const shouldEmitEndedHook =
@@ -608,6 +627,10 @@ function resumeSubagentRun(runId: string) {
     logAnnounceGiveUp(entry, "retry-limit");
     entry.cleanupCompletedAt = Date.now();
     persistSubagentRuns();
+    updateTaskDeliveryByRunId({
+      runId,
+      deliveryStatus: "failed",
+    });
     return;
   }
   if (
@@ -618,6 +641,10 @@ function resumeSubagentRun(runId: string) {
     logAnnounceGiveUp(entry, "expiry");
     entry.cleanupCompletedAt = Date.now();
     persistSubagentRuns();
+    updateTaskDeliveryByRunId({
+      runId,
+      deliveryStatus: "failed",
+    });
     return;
   }
 
@@ -867,6 +894,10 @@ async function finalizeSubagentCleanup(
     return;
   }
   if (didAnnounce) {
+    updateTaskDeliveryByRunId({
+      runId,
+      deliveryStatus: "delivered",
+    });
     entry.wakeOnDescendantSettle = undefined;
     entry.fallbackFrozenResultText = undefined;
     entry.fallbackFrozenResultCapturedAt = undefined;
@@ -921,6 +952,10 @@ async function finalizeSubagentCleanup(
   }
 
   if (deferredDecision.kind === "give-up") {
+    updateTaskDeliveryByRunId({
+      runId,
+      deliveryStatus: "failed",
+    });
     entry.wakeOnDescendantSettle = undefined;
     entry.fallbackFrozenResultText = undefined;
     entry.fallbackFrozenResultCapturedAt = undefined;
@@ -1023,6 +1058,10 @@ function retryDeferredCompletedAnnounces(excludeRunId?: string) {
       logAnnounceGiveUp(entry, "expiry");
       entry.cleanupCompletedAt = now;
       persistSubagentRuns();
+      updateTaskDeliveryByRunId({
+        runId,
+        deliveryStatus: "failed",
+      });
       continue;
     }
     resumedRuns.delete(runId);
@@ -1208,6 +1247,27 @@ export function registerSubagentRun(params: {
     attachmentsRootDir: params.attachmentsRootDir,
     retainAttachmentsOnKeep: params.retainAttachmentsOnKeep,
   });
+  try {
+    createTaskRecord({
+      source: "sessions_spawn",
+      runtime: "subagent",
+      requesterSessionKey: params.requesterSessionKey,
+      childSessionKey: params.childSessionKey,
+      runId: params.runId,
+      bindingTargetKind: "subagent",
+      label: params.label,
+      task: params.task,
+      status: "running",
+      deliveryStatus: params.expectsCompletionMessage === false ? "not_applicable" : "pending",
+      startedAt: now,
+      lastEventAt: now,
+    });
+  } catch (error) {
+    log.warn("Failed to create background task for subagent run", {
+      runId: params.runId,
+      error,
+    });
+  }
   ensureListener();
   persistSubagentRuns();
   if (archiveAtMs) {

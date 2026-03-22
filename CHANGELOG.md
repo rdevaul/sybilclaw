@@ -6,7 +6,7 @@ Docs: https://docs.openclaw.ai
 
 ### Changes
 
-- Placeholder: replace with the first 2026.3.14 user-facing change.
+- Background tasks: add durable task tracking plus `openclaw tasks list/show` for ACP sessions, subagents, and gateway async runs so spawned work can be inspected after silent failures or missed completion delivery.
 
 ## 2026.3.13
 

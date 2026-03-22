@@ -91,6 +91,11 @@ export async function runCli(argv: string[] = process.argv) {
   // Enforce the minimum supported runtime before doing any work.
   assertSupportedRuntime();
 
+  const { ensureTaskRegistryReady } = await import("../tasks/task-registry.js");
+  ensureTaskRegistryReady();
+  const { startTaskRegistryMaintenance } = await import("../tasks/task-registry.maintenance.js");
+  startTaskRegistryMaintenance();
+
   try {
     if (await tryRouteCli(normalizedArgv)) {
       return;

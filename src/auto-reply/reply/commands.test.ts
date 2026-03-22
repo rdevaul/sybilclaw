@@ -12,6 +12,7 @@ import type { OpenClawConfig } from "../../config/config.js";
 import { updateSessionStore, type SessionEntry } from "../../config/sessions.js";
 import * as internalHooks from "../../hooks/internal-hooks.js";
 import { clearPluginCommands, registerPluginCommand } from "../../plugins/commands.js";
+import { createTaskRecord, resetTaskRegistryForTests } from "../../tasks/task-registry.js";
 import { typedCases } from "../../test-utils/typed-cases.js";
 import { INTERNAL_MESSAGE_CHANNEL } from "../../utils/message-channel.js";
 import type { MsgContext } from "../templating.js";
@@ -1500,6 +1501,7 @@ describe("handleCommands context", () => {
 describe("handleCommands subagents", () => {
   beforeEach(() => {
     resetSubagentRegistryForTests();
+    resetTaskRegistryForTests();
     callGatewayMock.mockClear().mockImplementation(async () => ({}));
   });
 
@@ -1762,6 +1764,17 @@ describe("handleCommands subagents", () => {
       endedAt: now - 1_000,
       outcome: { status: "ok" },
     });
+    createTaskRecord({
+      source: "sessions_spawn",
+      runtime: "subagent",
+      requesterSessionKey: "agent:main:main",
+      childSessionKey: "agent:main:subagent:abc",
+      runId: "run-1",
+      task: "do thing",
+      status: "done",
+      deliveryStatus: "delivered",
+      startedAt: now - 20_000,
+    });
     const cfg = {
       commands: { text: true },
       channels: { whatsapp: { allowFrom: ["*"] } },
@@ -1773,6 +1786,7 @@ describe("handleCommands subagents", () => {
     expect(result.reply?.text).toContain("Subagent info");
     expect(result.reply?.text).toContain("Run: run-1");
     expect(result.reply?.text).toContain("Status: done");
+    expect(result.reply?.text).toContain("Delivery: delivered");
   });
 
   it("kills subagents via /kill alias without a confirmation reply", async () => {
