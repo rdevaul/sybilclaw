@@ -31,6 +31,7 @@ export const DEFAULT_HEARTBEAT_FILENAME = "HEARTBEAT.md";
 export const DEFAULT_BOOTSTRAP_FILENAME = "BOOTSTRAP.md";
 export const DEFAULT_MEMORY_FILENAME = "MEMORY.md";
 export const DEFAULT_MEMORY_ALT_FILENAME = "memory.md";
+export const DEFAULT_MEMORY_ACTIVE_FILENAME = "MEMORY_ACTIVE.md";
 const WORKSPACE_STATE_DIRNAME = ".openclaw";
 const WORKSPACE_STATE_FILENAME = "workspace-state.json";
 const WORKSPACE_STATE_VERSION = 1;
@@ -138,7 +139,8 @@ export type WorkspaceBootstrapFileName =
   | typeof DEFAULT_HEARTBEAT_FILENAME
   | typeof DEFAULT_BOOTSTRAP_FILENAME
   | typeof DEFAULT_MEMORY_FILENAME
-  | typeof DEFAULT_MEMORY_ALT_FILENAME;
+  | typeof DEFAULT_MEMORY_ALT_FILENAME
+  | typeof DEFAULT_MEMORY_ACTIVE_FILENAME;
 
 export type WorkspaceBootstrapFile = {
   name: WorkspaceBootstrapFileName;
@@ -176,6 +178,7 @@ const VALID_BOOTSTRAP_NAMES: ReadonlySet<string> = new Set([
   DEFAULT_BOOTSTRAP_FILENAME,
   DEFAULT_MEMORY_FILENAME,
   DEFAULT_MEMORY_ALT_FILENAME,
+  DEFAULT_MEMORY_ACTIVE_FILENAME,
 ]);
 
 async function writeFileIfMissing(filePath: string, content: string): Promise<boolean> {
@@ -484,7 +487,10 @@ async function resolveMemoryBootstrapEntry(
   return null;
 }
 
-export async function loadWorkspaceBootstrapFiles(dir: string): Promise<WorkspaceBootstrapFile[]> {
+export async function loadWorkspaceBootstrapFiles(
+  dir: string,
+  agentMemoryFile?: string,
+): Promise<WorkspaceBootstrapFile[]> {
   const resolvedDir = resolveUserPath(dir);
 
   const entries: Array<{
@@ -521,9 +527,20 @@ export async function loadWorkspaceBootstrapFiles(dir: string): Promise<Workspac
     },
   ];
 
-  const memoryEntry = await resolveMemoryBootstrapEntry(resolvedDir);
-  if (memoryEntry) {
-    entries.push(memoryEntry);
+  if (agentMemoryFile) {
+    const resolvedMemoryPath = path.join(resolvedDir, agentMemoryFile);
+    const baseName = path.basename(resolvedMemoryPath);
+    if (VALID_BOOTSTRAP_NAMES.has(baseName)) {
+      entries.push({
+        name: baseName as WorkspaceBootstrapFileName,
+        filePath: resolvedMemoryPath,
+      });
+    }
+  } else {
+    const memoryEntry = await resolveMemoryBootstrapEntry(resolvedDir);
+    if (memoryEntry) {
+      entries.push(memoryEntry);
+    }
   }
 
   const result: WorkspaceBootstrapFile[] = [];
