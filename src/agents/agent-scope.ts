@@ -42,6 +42,7 @@ type ResolvedAgentConfig = {
   subagents?: AgentEntry["subagents"];
   sandbox?: AgentEntry["sandbox"];
   tools?: AgentEntry["tools"];
+  memoryFile?: AgentEntry["memoryFile"];
 };
 
 let defaultAgentWarned = false;
@@ -147,6 +148,7 @@ export function resolveAgentConfig(
     subagents: typeof entry.subagents === "object" && entry.subagents ? entry.subagents : undefined,
     sandbox: entry.sandbox,
     tools: entry.tools,
+    memoryFile: typeof entry.memoryFile === "string" ? entry.memoryFile : undefined,
   };
 }
 
@@ -275,6 +277,11 @@ export function resolveAgentWorkspaceDir(cfg: OpenClawConfig, agentId: string) {
   }
   const stateDir = resolveStateDir(process.env);
   return stripNullBytes(path.join(stateDir, `workspace-${id}`));
+}
+
+export function resolveAgentMemoryFile(cfg: OpenClawConfig, agentId: string): string | undefined {
+  const id = normalizeAgentId(agentId);
+  return resolveAgentConfig(cfg, id)?.memoryFile?.trim() || undefined;
 }
 
 function normalizePathForComparison(input: string): string {

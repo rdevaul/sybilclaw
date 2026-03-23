@@ -800,6 +800,7 @@ export const AgentEntrySchema = z
     sandbox: AgentSandboxSchema,
     params: z.record(z.string(), z.unknown()).optional(),
     tools: AgentToolsSchema,
+    memoryFile: z.string().optional(),
     runtime: AgentRuntimeSchema,
   })
   .strict();
