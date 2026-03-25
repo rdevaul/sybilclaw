@@ -4582,6 +4582,16 @@
       "hasChildren": false
     },
     {
+      "path": "agents.list.*.memoryFile",
+      "kind": "core",
+      "type": "string",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
       "path": "agents.list.*.memorySearch",
       "kind": "core",
       "type": "object",
