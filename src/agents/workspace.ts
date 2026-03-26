@@ -528,13 +528,23 @@ export async function loadWorkspaceBootstrapFiles(
   ];
 
   if (agentMemoryFile) {
+    // Tier 1: system memory (always load)
+    const systemMemoryEntry = await resolveMemoryBootstrapEntry(resolvedDir);
+    if (systemMemoryEntry) {
+      entries.push(systemMemoryEntry);
+    }
+    // Tier 2: personal memory (agent-specific)
     const resolvedMemoryPath = path.join(resolvedDir, agentMemoryFile);
-    const baseName = path.basename(resolvedMemoryPath);
-    if (VALID_BOOTSTRAP_NAMES.has(baseName)) {
-      entries.push({
-        name: baseName as WorkspaceBootstrapFileName,
-        filePath: resolvedMemoryPath,
-      });
+    try {
+      const stat = await fs.stat(resolvedMemoryPath);
+      if (stat.isFile()) {
+        entries.push({
+          name: DEFAULT_MEMORY_ACTIVE_FILENAME,
+          filePath: resolvedMemoryPath,
+        });
+      }
+    } catch {
+      // personal memory file not found, skip silently
     }
   } else {
     const memoryEntry = await resolveMemoryBootstrapEntry(resolvedDir);

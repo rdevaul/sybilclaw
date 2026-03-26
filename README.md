@@ -1,4 +1,5 @@
 # 🦞 SybilClaw — Multi-user AI Assistant Swarm
+
 fork of OpenClaw
 
 <p align="center">
@@ -22,7 +23,7 @@ fork of OpenClaw
 **OpenClaw** is a _personal AI assistant_ you run on your own devices.
 It answers you on the channels you already use (WhatsApp, Telegram, Slack, Discord, Google Chat, Signal, iMessage, BlueBubbles, IRC, Microsoft Teams, Matrix, Feishu, LINE, Mattermost, Nextcloud Talk, Nostr, Synology Chat, Tlon, Twitch, Zalo, Zalo Personal, WebChat). It can speak and listen on macOS/iOS/Android, and can render a live Canvas you control. The Gateway is just the control plane — the product is the assistant.
 
-**SybilClaw** is a fork of OpelClaw that supports multiple users of the same core AI personality.  One SOUL.md, many users.  SybilClaw refactors OpenClaw's memory system to create a tiered memory structure, in which each user has its own MEMORY.md and personal document store, but also access to a system-level MEMORY.md and documents. SybilClaw is especially suited to support research teams, business units, or other small-to-medium sized groups that want access to an AI entity with specialized knowledge and personality, but with indiviual context and memory for its users.
+**SybilClaw** is a fork of OpelClaw that supports multiple users of the same core AI personality. One SOUL.md, many users. SybilClaw refactors OpenClaw's memory system to create a tiered memory structure, in which each user has its own MEMORY.md and personal document store, but also access to a system-level MEMORY.md and documents. SybilClaw is especially suited to support research teams, business units, or other small-to-medium sized groups that want access to an AI entity with specialized knowledge and personality, but with indiviual context and memory for its users.
 
 [Website](https://openclaw.ai) · [Docs](https://docs.openclaw.ai) · [Vision](VISION.md) · [DeepWiki](https://deepwiki.com/openclaw/openclaw) · [Getting Started](https://docs.openclaw.ai/start/getting-started) · [Updating](https://docs.openclaw.ai/install/updating) · [Showcase](https://docs.openclaw.ai/start/showcase) · [FAQ](https://docs.openclaw.ai/help/faq) · [Onboarding](https://docs.openclaw.ai/start/wizard) · [Nix](https://github.com/openclaw/nix-openclaw) · [Docker](https://docs.openclaw.ai/install/docker) · [Discord](https://discord.gg/clawd)
 
