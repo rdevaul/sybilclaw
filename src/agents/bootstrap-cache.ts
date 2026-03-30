@@ -5,19 +5,19 @@ const cache = new Map<string, WorkspaceBootstrapFile[]>();
 export async function getOrLoadBootstrapFiles(params: {
   workspaceDir: string;
   sessionKey: string;
-  agentMemoryFile?: string;
+  agentMemoryFiles?: string[];
 }): Promise<WorkspaceBootstrapFile[]> {
-  // When a per-agent memory file is specified, bypass the cache to ensure
-  // the correct memory file is resolved for this agent.
-  if (!params.agentMemoryFile) {
+  // When per-agent memory files are specified, bypass the cache to ensure
+  // the correct memory files are resolved for this agent.
+  if (!params.agentMemoryFiles) {
     const existing = cache.get(params.sessionKey);
     if (existing) {
       return existing;
     }
   }
 
-  const files = await loadWorkspaceBootstrapFiles(params.workspaceDir, params.agentMemoryFile);
-  if (!params.agentMemoryFile) {
+  const files = await loadWorkspaceBootstrapFiles(params.workspaceDir, params.agentMemoryFiles);
+  if (!params.agentMemoryFiles) {
     cache.set(params.sessionKey, files);
   }
   return files;

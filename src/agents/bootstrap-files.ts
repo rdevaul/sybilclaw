@@ -1,5 +1,5 @@
 import type { OpenClawConfig } from "../config/config.js";
-import { resolveAgentMemoryFile } from "./agent-scope.js";
+import { resolveAgentMemoryFiles } from "./agent-scope.js";
 import { getOrLoadBootstrapFiles } from "./bootstrap-cache.js";
 import { applyBootstrapHookOverrides } from "./bootstrap-hooks.js";
 import type { EmbeddedContextFile } from "./pi-embedded-helpers.js";
@@ -73,17 +73,17 @@ export async function resolveBootstrapFilesForRun(params: {
   runKind?: BootstrapContextRunKind;
 }): Promise<WorkspaceBootstrapFile[]> {
   const sessionKey = params.sessionKey ?? params.sessionId;
-  const agentMemoryFile =
+  const agentMemoryFiles =
     params.config && params.agentId
-      ? resolveAgentMemoryFile(params.config, params.agentId)
+      ? resolveAgentMemoryFiles(params.config, params.agentId)
       : undefined;
   const rawFiles = params.sessionKey
     ? await getOrLoadBootstrapFiles({
         workspaceDir: params.workspaceDir,
         sessionKey: params.sessionKey,
-        agentMemoryFile,
+        agentMemoryFiles,
       })
-    : await loadWorkspaceBootstrapFiles(params.workspaceDir, agentMemoryFile);
+    : await loadWorkspaceBootstrapFiles(params.workspaceDir, agentMemoryFiles);
   const bootstrapFiles = applyContextModeFilter({
     files: filterBootstrapFilesForSession(rawFiles, sessionKey),
     contextMode: params.contextMode,

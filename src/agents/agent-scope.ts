@@ -48,7 +48,7 @@ type ResolvedAgentConfig = {
   subagents?: AgentEntry["subagents"];
   sandbox?: AgentEntry["sandbox"];
   tools?: AgentEntry["tools"];
-  memoryFile?: AgentEntry["memoryFile"];
+  memoryFile?: string[];
 };
 
 let defaultAgentWarned = false;
@@ -154,7 +154,11 @@ export function resolveAgentConfig(
     subagents: typeof entry.subagents === "object" && entry.subagents ? entry.subagents : undefined,
     sandbox: entry.sandbox,
     tools: entry.tools,
-    memoryFile: typeof entry.memoryFile === "string" ? entry.memoryFile : undefined,
+    memoryFile: entry.memoryFile
+      ? Array.isArray(entry.memoryFile)
+        ? entry.memoryFile.filter((f) => typeof f === "string")
+        : [entry.memoryFile]
+      : undefined,
   };
 }
 
@@ -285,9 +289,22 @@ export function resolveAgentWorkspaceDir(cfg: OpenClawConfig, agentId: string) {
   return stripNullBytes(path.join(stateDir, `workspace-${id}`));
 }
 
-export function resolveAgentMemoryFile(cfg: OpenClawConfig, agentId: string): string | undefined {
+export function resolveAgentMemoryFiles(
+  cfg: OpenClawConfig,
+  agentId: string,
+): string[] | undefined {
   const id = normalizeAgentId(agentId);
-  return resolveAgentConfig(cfg, id)?.memoryFile?.trim() || undefined;
+  const files = resolveAgentConfig(cfg, id)?.memoryFile;
+  if (!files || files.length === 0) {
+    return undefined;
+  }
+  const trimmed = files.map((f) => f.trim()).filter(Boolean);
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/** @deprecated Use resolveAgentMemoryFiles instead */
+export function resolveAgentMemoryFile(cfg: OpenClawConfig, agentId: string): string | undefined {
+  return resolveAgentMemoryFiles(cfg, agentId)?.[0];
 }
 
 function normalizePathForComparison(input: string): string {

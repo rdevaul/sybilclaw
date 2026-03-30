@@ -94,11 +94,13 @@ export type AgentConfig = {
   params?: Record<string, unknown>;
   tools?: AgentToolsConfig;
   /**
-   * Optional path (relative to workspace) for this agent's memory bootstrap file.
+   * Optional path(s) (relative to workspace) for this agent's memory bootstrap file(s).
+   * Accepts a single string or an array of strings.
    * Defaults to MEMORY.md at workspace root when unset.
    * Supports synthesized per-user memory files (e.g. memory/personal/rich/MEMORY_ACTIVE.md).
+   * Multiple files are injected in order and concatenated under the "Project Context" heading.
    */
-  memoryFile?: string;
+  memoryFile?: string | string[];
   /** Optional runtime descriptor for this agent. */
   runtime?: AgentRuntimeConfig;
 };

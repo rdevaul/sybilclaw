@@ -489,7 +489,7 @@ async function resolveMemoryBootstrapEntry(
 
 export async function loadWorkspaceBootstrapFiles(
   dir: string,
-  agentMemoryFile?: string,
+  agentMemoryFiles?: string | string[],
 ): Promise<WorkspaceBootstrapFile[]> {
   const resolvedDir = resolveUserPath(dir);
 
@@ -527,14 +527,23 @@ export async function loadWorkspaceBootstrapFiles(
     },
   ];
 
-  if (agentMemoryFile) {
-    const resolvedMemoryPath = path.join(resolvedDir, agentMemoryFile);
-    const baseName = path.basename(resolvedMemoryPath);
-    if (VALID_BOOTSTRAP_NAMES.has(baseName)) {
-      entries.push({
-        name: baseName as WorkspaceBootstrapFileName,
-        filePath: resolvedMemoryPath,
-      });
+  // Normalize to array; undefined means fall back to default MEMORY.md resolution
+  const memoryFileList = agentMemoryFiles
+    ? Array.isArray(agentMemoryFiles)
+      ? agentMemoryFiles
+      : [agentMemoryFiles]
+    : null;
+
+  if (memoryFileList && memoryFileList.length > 0) {
+    for (const memFile of memoryFileList) {
+      const resolvedMemoryPath = path.join(resolvedDir, memFile);
+      const baseName = path.basename(resolvedMemoryPath);
+      if (VALID_BOOTSTRAP_NAMES.has(baseName)) {
+        entries.push({
+          name: baseName as WorkspaceBootstrapFileName,
+          filePath: resolvedMemoryPath,
+        });
+      }
     }
   } else {
     const memoryEntry = await resolveMemoryBootstrapEntry(resolvedDir);

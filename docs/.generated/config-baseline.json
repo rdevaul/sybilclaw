@@ -4584,6 +4584,19 @@
     {
       "path": "agents.list.*.memoryFile",
       "kind": "core",
+      "type": [
+        "array",
+        "string"
+      ],
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "agents.list.*.memoryFile.*",
+      "kind": "core",
       "type": "string",
       "required": false,
       "deprecated": false,
