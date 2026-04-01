@@ -38,5 +38,6 @@ export function createCanonicalFixtureSkill(params: {
     baseDir: params.baseDir,
     source: params.source,
     disableModelInvocation: params.disableModelInvocation ?? false,
+    sourceInfo: { path: params.filePath, source: "local", scope: "user", origin: "top-level" },
   };
 }

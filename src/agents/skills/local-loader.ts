@@ -75,6 +75,7 @@ function loadSingleSkillDirectory(params: {
     baseDir,
     source: params.source,
     disableModelInvocation: invocation.disableModelInvocation,
+    sourceInfo: { path: filePath, source: "local", scope: "user", origin: "top-level" },
   };
 }
 
