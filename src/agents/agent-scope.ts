@@ -49,6 +49,7 @@ type ResolvedAgentConfig = {
   sandbox?: AgentEntry["sandbox"];
   tools?: AgentEntry["tools"];
   memoryFile?: string[];
+  memoryAllowedPaths?: string[];
 };
 
 let defaultAgentWarned = false;
@@ -158,6 +159,9 @@ export function resolveAgentConfig(
       ? Array.isArray(entry.memoryFile)
         ? entry.memoryFile.filter((f) => typeof f === "string")
         : [entry.memoryFile]
+      : undefined,
+    memoryAllowedPaths: Array.isArray(entry.memoryAllowedPaths)
+      ? entry.memoryAllowedPaths
       : undefined,
   };
 }
@@ -305,6 +309,19 @@ export function resolveAgentMemoryFiles(
 /** @deprecated Use resolveAgentMemoryFiles instead */
 export function resolveAgentMemoryFile(cfg: OpenClawConfig, agentId: string): string | undefined {
   return resolveAgentMemoryFiles(cfg, agentId)?.[0];
+}
+
+export function resolveAgentMemoryAllowedPaths(
+  cfg: OpenClawConfig,
+  agentId: string,
+): string[] | undefined {
+  const id = normalizeAgentId(agentId);
+  const paths = resolveAgentConfig(cfg, id)?.memoryAllowedPaths;
+  if (!paths || paths.length === 0) {
+    return undefined;
+  }
+  const trimmed = paths.map((p) => p.trim()).filter(Boolean);
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function normalizePathForComparison(input: string): string {

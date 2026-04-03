@@ -811,6 +811,7 @@ export const AgentEntrySchema = z
     params: z.record(z.string(), z.unknown()).optional(),
     tools: AgentToolsSchema,
     memoryFile: z.union([z.string(), z.array(z.string())]).optional(),
+    memoryAllowedPaths: z.array(z.string()).optional(),
     runtime: AgentRuntimeSchema,
   })
   .strict();

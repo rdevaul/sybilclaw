@@ -490,6 +490,7 @@ async function resolveMemoryBootstrapEntry(
 export async function loadWorkspaceBootstrapFiles(
   dir: string,
   agentMemoryFiles?: string | string[],
+  agentMemoryAllowedPaths?: string[],
 ): Promise<WorkspaceBootstrapFile[]> {
   const resolvedDir = resolveUserPath(dir);
 
@@ -536,6 +537,15 @@ export async function loadWorkspaceBootstrapFiles(
 
   if (memoryFileList && memoryFileList.length > 0) {
     for (const memFile of memoryFileList) {
+      // Apply path filtering if memoryAllowedPaths is configured
+      if (agentMemoryAllowedPaths && agentMemoryAllowedPaths.length > 0) {
+        const isAllowed = agentMemoryAllowedPaths.some((prefix) => memFile.startsWith(prefix));
+        if (!isAllowed) {
+          // Skip this file - path is not within allowed prefixes
+          continue;
+        }
+      }
+
       const resolvedMemoryPath = path.join(resolvedDir, memFile);
       const baseName = path.basename(resolvedMemoryPath);
       if (VALID_BOOTSTRAP_NAMES.has(baseName)) {

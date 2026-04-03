@@ -101,6 +101,13 @@ export type AgentConfig = {
    * Multiple files are injected in order and concatenated under the "Project Context" heading.
    */
   memoryFile?: string | string[];
+  /**
+   * Optional allowed path prefix(es) for memory file access.
+   * When set, workspace file access for memory operations is restricted to paths
+   * starting with one of these prefixes. Paths outside the allowlist return null/empty.
+   * Defaults to no restriction (backward compatible).
+   */
+  memoryAllowedPaths?: string[];
   /** Optional runtime descriptor for this agent. */
   runtime?: AgentRuntimeConfig;
 };

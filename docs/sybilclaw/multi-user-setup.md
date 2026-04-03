@@ -94,6 +94,90 @@ Here's an `openclaw.json` showing multiple agents with isolated memory:
 - **`allowFrom`** — Channel-specific allowlist ensures only the designated user can access their agent
 - All agents still share SOUL.md, AGENTS.md, TOOLS.md, and IDENTITY.md from the workspace root
 
+## Memory Path Isolation
+
+For enhanced security, you can restrict which memory files an agent can access using the **`memoryAllowedPaths`** configuration option. This enforces path-based access control for memory operations.
+
+### Configuration Pattern
+
+```json
+{
+  "agents": {
+    "agent-alice": {
+      "memoryFile": "memory/personal/alice/MEMORY.md",
+      "memoryAllowedPaths": ["memory/personal/alice/", "memory/shared/"],
+      "channels": {
+        "telegram": {
+          "allowFrom": ["+1234567890"]
+        }
+      }
+    },
+    "agent-bob": {
+      "memoryFile": "memory/personal/bob/MEMORY.md",
+      "memoryAllowedPaths": ["memory/personal/bob/", "memory/shared/"],
+      "channels": {
+        "telegram": {
+          "allowFrom": ["+9876543210"]
+        }
+      }
+    },
+    "agent-household": {
+      "memoryFile": "memory/shared/household/MEMORY.md",
+      "memoryAllowedPaths": ["memory/shared/"]
+    }
+  }
+}
+```
+
+### How It Works
+
+- **`memoryAllowedPaths`** is an optional array of path prefixes
+- When set, memory file access is restricted to paths starting with one of the allowed prefixes
+- If an agent tries to access a memory file outside its allowed paths, the file is silently skipped (not loaded)
+- When not set, there is no path restriction (backward compatible)
+
+### Benefits
+
+- **Prevents accidental cross-contamination** — Alice's agent cannot access Bob's memory files, even if misconfigured
+- **Enforces security boundaries** — Additional layer of protection beyond channel allowlists
+- **Supports shared memory** — Multiple agents can share common memory paths (e.g., `memory/shared/`)
+- **Fail-safe design** — Invalid paths are ignored rather than causing errors
+
+### Example Use Cases
+
+#### Personal + Shared Access
+
+Allow personal memory plus access to shared household context:
+
+```json
+{
+  "memoryFile": "memory/personal/alice/MEMORY.md",
+  "memoryAllowedPaths": ["memory/personal/alice/", "memory/shared/household/"]
+}
+```
+
+#### Strict Isolation
+
+Restrict agent to only its personal memory directory:
+
+```json
+{
+  "memoryFile": "memory/personal/alice/MEMORY.md",
+  "memoryAllowedPaths": ["memory/personal/alice/"]
+}
+```
+
+#### Shared-Only Agent
+
+Create an agent that only accesses shared memory:
+
+```json
+{
+  "memoryFile": "memory/shared/family/MEMORY.md",
+  "memoryAllowedPaths": ["memory/shared/"]
+}
+```
+
 ## Security Considerations
 
 ### Channel Isolation
