@@ -109,6 +109,19 @@ const coreEntries: CoreCliEntry[] = [
   {
     commands: [
       {
+        name: "migrate",
+        description: "Migrate an existing ~/.openclaw installation to ~/.sybilclaw",
+        hasSubcommands: false,
+      },
+    ],
+    register: async ({ program }) => {
+      const mod = await import("../migrate-cli.js");
+      mod.registerMigrateCommand(program);
+    },
+  },
+  {
+    commands: [
+      {
         name: "doctor",
         description: "Health checks + quick fixes for the gateway and channels",
         hasSubcommands: false,

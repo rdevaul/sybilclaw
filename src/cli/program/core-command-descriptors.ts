@@ -32,6 +32,11 @@ export const CORE_CLI_COMMAND_DESCRIPTORS = [
     hasSubcommands: true,
   },
   {
+    name: "migrate",
+    description: "Migrate an existing ~/.openclaw installation to ~/.sybilclaw",
+    hasSubcommands: false,
+  },
+  {
     name: "doctor",
     description: "Health checks + quick fixes for the gateway and channels",
     hasSubcommands: false,
