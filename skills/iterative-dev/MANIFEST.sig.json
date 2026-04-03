@@ -1,0 +1,31 @@
+{
+  "dependencies": [],
+  "files": {
+    "SKILL.md": {
+      "sha256": "fc0a0de18eb693ce5f552b4a82f8aa0fdfa729321bb577872fea4ae58b8cc327",
+      "size": 6810
+    },
+    "examples/example-requirements.md": {
+      "sha256": "ad726f9a8adb7ef62ea3b708315e6642b4c64dd914e30b24eef77f40490ffa48",
+      "size": 884
+    },
+    "examples/example-state.json": {
+      "sha256": "533d0e27e60a161f6327c94ed0afeee542665d4b68e345da00922aa8249ccac1",
+      "size": 553
+    }
+  },
+  "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAg3tqq6TAqws7hgX9EVlNyFhiav6\n3R97hV8mwEWkVQ61oAAAAOc2tpbGwtbWFuaWZlc3QAAAAAAAAABnNoYTUxMgAAAFMAAAAL\nc3NoLWVkMjU1MTkAAABA9c0W+exY8HJ/K3KI3u/X8eaCzeRZ5JSFw3AO3yhTSjiyYB468Y\nt43GufXeJHyz7GX9rt7p+c4XuEUrtSTjOyDg==\n-----END SSH SIGNATURE-----\n",
+  "signer": {
+    "algorithm": "ssh-ed25519",
+    "identity": "richard.devaul@gmail.com",
+    "key_fingerprint": "SHA256:OEMqk8ND6xNcsBkzOkH7R+cQiHHDagRwrCbTtxQh0J0",
+    "key_type": "ssh"
+  },
+  "skill": {
+    "author": "richard.devaul@gmail.com",
+    "name": "Iterative Development Loop Skill",
+    "version": "1.0.0"
+  },
+  "timestamp": "2026-04-03T19:17:07.434384+00:00",
+  "version": "1.0.0"
+}

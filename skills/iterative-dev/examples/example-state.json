@@ -1,0 +1,17 @@
+{
+  "project": "memory-refactor",
+  "phases": [
+    "Phase 1: Memory type taxonomy + INDEX.md restructure",
+    "Phase 2: JSONL transcript archive + background consolidation cron",
+    "Phase 3: Structural multi-user isolation + session-end extraction"
+  ],
+  "current_phase": 2,
+  "phase_status": {
+    "1": "review_passed",
+    "2": "in_progress",
+    "3": "pending"
+  },
+  "retry_count": 0,
+  "last_updated": "2026-04-03T17:30:00Z",
+  "notes": "Phase 1 complete. Topic files exist, INDEX.md is pointer-only. Phase 2 impl spawned, awaiting review."
+}
