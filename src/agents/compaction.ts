@@ -12,6 +12,23 @@ import { repairToolUseResultPairing, stripToolResultDetails } from "./session-tr
 
 const log = createSubsystemLogger("compaction");
 
+/**
+ * Graduated Compaction Strategy (4-level):
+ *
+ * Level 1 — Tool result pruning (>500 lines):
+ *   TODO: requires message pre-processor hooks to truncate verbose tool results
+ *
+ * Level 2 — Mid-session checkpoint (>40 turns):
+ *   TODO: requires turn counting + threshold triggers to write interim summaries
+ *
+ * Level 3 — Session-end extraction:
+ *   TODO: requires session lifecycle hooks to extract key decisions/facts to
+ *   $WORKSPACE_ROOT/memory/transcripts/YYYY-MM-DD.jsonl via session-summary.sh
+ *
+ * Level 4 — Hard compact (implemented):
+ *   Existing /compact command and overflow compaction.
+ */
+
 export const BASE_CHUNK_RATIO = 0.4;
 export const MIN_CHUNK_RATIO = 0.15;
 export const SAFETY_MARGIN = 1.2; // 20% buffer for estimateTokens() inaccuracy
