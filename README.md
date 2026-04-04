@@ -1,6 +1,6 @@
-# 🦞 SybilClaw — Multi-user AI Assistant Swarm
+# 🦞 SybilClaw — Robust Multi-User AI with Advanced Memory Management
 
-fork of OpenClaw
+_A fork of [OpenClaw](https://github.com/openclaw/openclaw) built for households, research teams, and small organizations that need one AI personality serving multiple people — each with their own memory, context, and history._
 
 <p align="center">
     <picture>
@@ -10,26 +10,66 @@ fork of OpenClaw
 </p>
 
 <p align="center">
-  <strong>EXFOLIATE! EXFOLIATE!</strong>
-</p>
-
-<p align="center">
   <a href="https://github.com/openclaw/openclaw/actions/workflows/ci.yml?branch=main"><img src="https://img.shields.io/github/actions/workflow/status/openclaw/openclaw/ci.yml?branch=main&style=for-the-badge" alt="CI status"></a>
   <a href="https://github.com/openclaw/openclaw/releases"><img src="https://img.shields.io/github/v/release/openclaw/openclaw?include_prereleases&style=for-the-badge" alt="GitHub release"></a>
   <a href="https://discord.gg/clawd"><img src="https://img.shields.io/discord/1456350064065904867?label=Discord&logo=discord&logoColor=white&color=5865F2&style=for-the-badge" alt="Discord"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 
-**OpenClaw** is a _personal AI assistant_ you run on your own devices.
-It answers you on the channels you already use (WhatsApp, Telegram, Slack, Discord, Google Chat, Signal, iMessage, BlueBubbles, IRC, Microsoft Teams, Matrix, Feishu, LINE, Mattermost, Nextcloud Talk, Nostr, Synology Chat, Tlon, Twitch, Zalo, Zalo Personal, WeChat, WebChat). It can speak and listen on macOS/iOS/Android, and can render a live Canvas you control. The Gateway is just the control plane — the product is the assistant.
+## What Is SybilClaw?
 
-**SybilClaw** is a fork of OpenClaw that supports multiple users of the same core AI personality. One SOUL.md, many users. SybilClaw refactors OpenClaw's memory system to create a tiered memory structure, in which each user has its own MEMORY.md and personal document store, but also access to a system-level MEMORY.md and documents. SybilClaw is especially suited to support research teams, business units, or other small-to-medium sized groups that want access to an AI entity with specialized knowledge and personality, but with indiviual context and memory for its users.
+**OpenClaw** is a self-hosted AI assistant that runs on your own devices and connects to the messaging channels you already use (Telegram, WhatsApp, Discord, Signal, iMessage, Slack, and [many more](#channels)). It can speak, listen, render a live Canvas, and control a browser — all from a single local gateway.
 
-### SybilClaw Multi-User Setup
+**SybilClaw** extends OpenClaw with two core capabilities that OpenClaw doesn't support out of the box:
+
+### 1. True Multi-User Support
+
+OpenClaw is designed around a single user. SybilClaw makes it a first-class multi-user system:
+
+- **One personality, many people.** A single `SOUL.md` defines the AI's character, expertise, and values. Every user interacts with the same coherent entity — not a blank chatbot.
+- **Per-user memory isolation.** Each user gets their own `MEMORY.md` and personal document store. Alice's context, history, and preferences never bleed into Bob's.
+- **Shared household/team knowledge.** A separate shared memory layer holds facts everyone should know — schedules, household logistics, team context — accessible to all users without polluting personal memory.
+- **Role-based access.** Route different users (or different messaging channels) to isolated agents with their own workspaces and permission levels.
+
+**Who is this for?**
+
+- Households where multiple family members want their own relationship with a shared AI assistant
+- Research teams or small business units that want a domain-expert AI with per-user context
+- Anyone running a single AI service for a small group (2–10 people) without wanting to maintain separate instances
+
+### 2. Advanced Memory Management
+
+Context windows are finite. Most AI assistants either forget everything between sessions or dump everything into a context that grows until it breaks. SybilClaw takes a structured approach:
+
+**Tiered memory architecture:**
+
+| Layer                  | Purpose                                                  | Scope     |
+| ---------------------- | -------------------------------------------------------- | --------- |
+| **Personal MEMORY.md** | Long-term curated facts, preferences, decisions          | Per-user  |
+| **Personal topics/**   | Typed subdirectories: projects, tools, feedback, context | Per-user  |
+| **Shared household/**  | Schedules, logistics, shared decisions                   | All users |
+| **Daily logs**         | Session-by-session notes                                 | Per-user  |
+| **Context graph**      | Semantic tag-based retrieval across sessions             | Per-user  |
+
+**Key behaviors:**
+
+- Memory is written to files — it survives session restarts and context compaction
+- A graduated compaction strategy (tool pruning → checkpoints → session extraction → hard compact) means important context is preserved even under pressure
+- The context graph layer provides tag-based semantic retrieval, so the AI can find relevant prior context without scanning everything
+- Session summaries are automatically archived for long-term searchability
+
+### SybilClaw Quick Links
 
 - [Multi-user setup guide](docs/sybilclaw/multi-user-setup.md) — configure per-user agents with isolated memory
 - [Context graph architecture](docs/sybilclaw/context-graph-architecture.md) — tag-based context management system
 - **Key config:** `agents.<agentId>.memoryFile` — path to per-user MEMORY.md (relative to workspace or absolute)
+- **Migration:** `sybilclaw migrate` — migrate an existing OpenClaw workspace to SybilClaw's memory structure
+
+---
+
+## OpenClaw Foundation
+
+SybilClaw inherits the full OpenClaw platform. Everything below is available in SybilClaw:
 
 [Website](https://openclaw.ai) · [Docs](https://docs.openclaw.ai) · [Vision](VISION.md) · [DeepWiki](https://deepwiki.com/openclaw/openclaw) · [Getting Started](https://docs.openclaw.ai/start/getting-started) · [Updating](https://docs.openclaw.ai/install/updating) · [Showcase](https://docs.openclaw.ai/start/showcase) · [FAQ](https://docs.openclaw.ai/help/faq) · [Onboarding](https://docs.openclaw.ai/start/wizard) · [Nix](https://github.com/openclaw/nix-openclaw) · [Docker](https://docs.openclaw.ai/install/docker) · [Discord](https://discord.gg/clawd)
 
