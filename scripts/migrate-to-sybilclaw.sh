@@ -6,11 +6,11 @@ set -euo pipefail
 # Keeps ~/.openclaw intact as a backup
 
 # Color codes for terminal output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m' # No Color
+readonly RED=$'\033[0;31m'
+readonly GREEN=$'\033[0;32m'
+readonly YELLOW=$'\033[1;33m'
+readonly BLUE=$'\033[0;34m'
+readonly NC=$'\033[0m' # No Color
 
 # Default paths
 DEFAULT_SOURCE="$HOME/.openclaw"
@@ -86,28 +86,35 @@ EOF
 }
 
 # Logging functions
+# log_file_only: writes to log file only (plain text, no color)
+log_file_only() {
+  echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
+}
+
+# log: writes plain text to both terminal and log file
 log() {
-  echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+  local msg="[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+  echo "$msg" | tee -a "$LOG_FILE"
 }
 
 log_error() {
-  echo -e "${RED}ERROR: $*${NC}" >&2
-  log "ERROR: $*"
+  printf "%sERROR: %s%s\n" "${RED}" "$*" "${NC}" >&2
+  log_file_only "ERROR: $*"
 }
 
 log_success() {
-  echo -e "${GREEN}✅ $*${NC}"
-  log "SUCCESS: $*"
+  printf "%s✅ %s%s\n" "${GREEN}" "$*" "${NC}"
+  log_file_only "SUCCESS: $*"
 }
 
 log_info() {
-  echo -e "${BLUE}ℹ️  $*${NC}"
-  log "INFO: $*"
+  printf "%sℹ️  %s%s\n" "${BLUE}" "$*" "${NC}"
+  log_file_only "INFO: $*"
 }
 
 log_warning() {
-  echo -e "${YELLOW}⚠️  $*${NC}"
-  log "WARNING: $*"
+  printf "%s⚠️  %s%s\n" "${YELLOW}" "$*" "${NC}"
+  log_file_only "WARNING: $*"
 }
 
 # Parse command line arguments
@@ -520,7 +527,7 @@ main() {
   log "Destination: $DEST_DIR"
 
   if [[ $DRY_RUN -eq 1 ]]; then
-    log_info "${YELLOW}DRY RUN MODE - No changes will be made${NC}"
+    log_info "DRY RUN MODE - No changes will be made"
   fi
 
   validate_preconditions
@@ -536,7 +543,7 @@ main() {
   update_workspace_scripts
 
   if [[ $DRY_RUN -eq 1 ]]; then
-    log_info "${YELLOW}DRY RUN COMPLETE - No actual changes were made${NC}"
+    log_info "DRY RUN COMPLETE - No actual changes were made"
     exit 0
   fi
 
