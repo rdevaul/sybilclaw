@@ -230,6 +230,7 @@ ${YELLOW}Config transformations:${NC}
   • openclaw.json will be copied to sybilclaw.json
   • All /.openclaw/ paths will be replaced with /.sybilclaw/
   • Workspace scripts will be updated with latest version
+  • openclaw CLI symlink created (openclaw → sybilclaw for compatibility)
 
 ${RED}Important:${NC}
   • Source directory will remain UNTOUCHED (safe backup)
@@ -362,6 +363,62 @@ transform_config() {
         fi
       done < <(find "$DEST_DIR/workspace/config" -name "*.json" -type f -print0 2>/dev/null)
     fi
+  fi
+}
+
+# Create openclaw → sybilclaw symlink for CLI compatibility
+create_cli_symlink() {
+  log_info "Creating openclaw CLI compatibility symlink..."
+
+  # Find where sybilclaw is installed
+  local sybilclaw_bin
+  sybilclaw_bin=$(which sybilclaw 2>/dev/null || true)
+
+  if [[ -z "$sybilclaw_bin" ]]; then
+    log_warning "sybilclaw not found in PATH — skipping openclaw symlink"
+    return 0
+  fi
+
+  # Resolve to real path (follow existing symlinks)
+  local sybilclaw_real
+  sybilclaw_real=$(readlink -f "$sybilclaw_bin" 2>/dev/null || realpath "$sybilclaw_bin" 2>/dev/null || echo "$sybilclaw_bin")
+
+  # Determine target bin directory (same dir as sybilclaw)
+  local bin_dir
+  bin_dir=$(dirname "$sybilclaw_bin")
+  local openclaw_link="$bin_dir/openclaw"
+
+  # Check if openclaw already exists and points to the right place
+  if [[ -L "$openclaw_link" ]]; then
+    local existing_target
+    existing_target=$(readlink "$openclaw_link")
+    local sybilclaw_target
+    sybilclaw_target=$(readlink "$sybilclaw_bin" 2>/dev/null || echo "")
+    if [[ "$existing_target" == "$sybilclaw_target" || "$existing_target" == "$sybilclaw_real" ]]; then
+      log_success "openclaw symlink already exists and is correct"
+      return 0
+    fi
+    log_info "  Replacing existing openclaw symlink"
+    if [[ $DRY_RUN -eq 0 ]]; then
+      rm "$openclaw_link"
+    fi
+  elif [[ -e "$openclaw_link" ]]; then
+    log_warning "$openclaw_link exists but is not a symlink — skipping to avoid overwriting"
+    return 0
+  fi
+
+  # Get the relative target (same as sybilclaw's own symlink target if it's a symlink)
+  local link_target
+  if [[ -L "$sybilclaw_bin" ]]; then
+    link_target=$(readlink "$sybilclaw_bin")
+  else
+    link_target="$sybilclaw_real"
+  fi
+
+  log_info "  Creating: $openclaw_link → $link_target"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    ln -s "$link_target" "$openclaw_link"
+    log_success "openclaw → sybilclaw symlink created (legacy CLI compatibility)"
   fi
 }
 
@@ -541,6 +598,7 @@ main() {
   copy_files
   transform_config
   update_workspace_scripts
+  create_cli_symlink
 
   if [[ $DRY_RUN -eq 1 ]]; then
     log_info "DRY RUN COMPLETE - No actual changes were made"
