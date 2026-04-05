@@ -16,6 +16,8 @@ _A fork of [OpenClaw](https://github.com/openclaw/openclaw) built for households
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 
+> **Already running OpenClaw?** Jump straight to the [Migration Guide](docs/sybilclaw/migrating-to-sybilclaw.md) — SybilClaw is a drop-in upgrade and your existing workspace, channels, and config all carry over.
+
 ## What Is SybilClaw?
 
 **OpenClaw** is a self-hosted AI assistant that runs on your own devices and connects to the messaging channels you already use (Telegram, WhatsApp, Discord, Signal, iMessage, Slack, and [many more](#channels)). It can speak, listen, render a live Canvas, and control a browser — all from a single local gateway.
@@ -63,7 +65,7 @@ Context windows are finite. Most AI assistants either forget everything between 
 - [Multi-user setup guide](docs/sybilclaw/multi-user-setup.md) — configure per-user agents with isolated memory
 - [Context graph architecture](docs/sybilclaw/context-graph-architecture.md) — tag-based context management system
 - **Key config:** `agents.<agentId>.memoryFile` — path to per-user MEMORY.md (relative to workspace or absolute)
-- **Migration:** `sybilclaw migrate` — migrate an existing OpenClaw workspace to SybilClaw's memory structure
+- **Migration:** [Migrating from OpenClaw](docs/sybilclaw/migrating-to-sybilclaw.md) — step-by-step guide for existing OpenClaw users
 
 ---
 
