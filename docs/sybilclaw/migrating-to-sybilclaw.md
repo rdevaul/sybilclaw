@@ -20,11 +20,11 @@ SybilClaw is a drop-in replacement. Your existing config, credentials, sessions,
 | Feature         | OpenClaw           | SybilClaw                                 |
 | --------------- | ------------------ | ----------------------------------------- |
 | Binary name     | `openclaw`         | `sybilclaw` (also aliased as `openclaw`)  |
-| Config file     | `openclaw.json`    | `openclaw.json` (unchanged)               |
+| Config file     | `openclaw.json`    | `sybilclaw.json`                          |
 | Agent memory    | Single `MEMORY.md` | Per-agent `memoryFile` config             |
 | Memory paths    | Unrestricted       | Optional `memoryAllowedPaths` enforcement |
 | Multi-user      | Manual workaround  | First-class per-agent isolation           |
-| State directory | `~/.openclaw/`     | `~/.openclaw/` (unchanged)                |
+| State directory | `~/.openclaw/`     | `~/.sybilclaw/`                           |
 
 ## Before You Start
 
@@ -37,6 +37,10 @@ tar -czf openclaw-backup-$(date +%Y%m%d).tgz .openclaw
 ```
 
 Store the backup somewhere safe — it contains API keys, OAuth tokens, and channel credentials.
+
+<Note>
+SybilClaw uses `~/.sybilclaw/` as its state directory and `sybilclaw.json` as its config file. During first run, SybilClaw will automatically migrate your existing `~/.openclaw/` state (credentials, sessions, channel logins) into `~/.sybilclaw/`. Your original `~/.openclaw/` is left untouched.
+</Note>
 
 ---
 
@@ -107,7 +111,7 @@ EOF
 
 <Step title="Update openclaw.json">
 
-Open `~/.openclaw/openclaw.json` in your editor.
+Open `~/.sybilclaw/sybilclaw.json` in your editor (created automatically on first run).
 
 **Single-user setup** — add `memoryFile` to your main agent:
 
@@ -156,12 +160,12 @@ See the [Multi-User Setup Guide](multi-user-setup.md) for full configuration opt
 
 <Step title="Run doctor and restart">
 
-SybilClaw's `openclaw doctor` applies any config migrations and validates your setup:
+SybilClaw's doctor command applies any config migrations and validates your setup:
 
 ```bash
-openclaw doctor
-openclaw gateway restart
-openclaw status
+sybilclaw doctor
+sybilclaw gateway restart
+sybilclaw status
 ```
 
 Check that all channels show as connected and no errors appear in the doctor output.
@@ -177,7 +181,7 @@ If you run the gateway as a launchd (macOS) or systemd (Linux) service, update t
 ```bash
 which sybilclaw   # confirm install path
 which openclaw    # should be the same path (symlink)
-launchctl list | grep openclaw
+launchctl list | grep sybilclaw
 ```
 
 If you need to update the plist:
@@ -194,8 +198,8 @@ If you need to update the plist:
 Reload after changes:
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.yourorg.openclaw.plist
-launchctl load ~/Library/LaunchAgents/com.yourorg.openclaw.plist
+launchctl unload ~/Library/LaunchAgents/com.yourorg.sybilclaw.plist
+launchctl load ~/Library/LaunchAgents/com.yourorg.sybilclaw.plist
 ```
 
 </Step>
@@ -208,9 +212,9 @@ launchctl load ~/Library/LaunchAgents/com.yourorg.openclaw.plist
 
 After migration, confirm:
 
-- [ ] `openclaw status` shows the gateway running
+- [ ] `sybilclaw status` shows the gateway running
 - [ ] All channels are still connected (no re-pairing needed)
-- [ ] `openclaw doctor` reports no errors
+- [ ] `sybilclaw doctor` reports no errors
 - [ ] The dashboard shows existing sessions
 - [ ] Each agent can access its own `MEMORY.md` (test with "what do you remember about me?")
 - [ ] Agents cannot read each other's personal memory (if `memoryAllowedPaths` is configured)
@@ -226,8 +230,8 @@ After migration, confirm:
 The `openclaw` symlink is created at install time. If it is missing:
 
 ```bash
-ls -la $(which sybilclaw)       # confirm sybilclaw is installed
-ln -sf $(which sybilclaw) /usr/local/bin/openclaw   # recreate symlink
+ls -la $(which sybilclaw)                            # confirm sybilclaw is installed
+ln -sf $(which sybilclaw) /usr/local/bin/openclaw    # recreate symlink
 ```
 
 </Accordion>
@@ -235,9 +239,9 @@ ln -sf $(which sybilclaw) /usr/local/bin/openclaw   # recreate symlink
 <Accordion title="Agent loads wrong MEMORY.md">
 SybilClaw falls back to the workspace root `MEMORY.md` if `memoryFile` is not set or the path does not exist. Check:
 
-1. `memoryFile` is set correctly in `openclaw.json` for each agent
+1. `memoryFile` is set correctly in `~/.sybilclaw/sybilclaw.json` for each agent
 2. The file exists at the configured path (relative to workspace or absolute)
-3. Run `openclaw doctor` — it will flag missing memory files
+3. Run `sybilclaw doctor` — it will flag missing memory files
    </Accordion>
 
 <Accordion title="memoryAllowedPaths silently blocks reads">
@@ -249,24 +253,24 @@ When `memoryAllowedPaths` is set, any memory file outside those prefixes is sile
    </Accordion>
 
 <Accordion title="Sessions and history missing after migration">
-Session history lives in `~/.openclaw/` — if you moved or renamed that directory during migration, point the gateway back at it:
+Session history lives in `~/.sybilclaw/` — if you moved or renamed that directory during migration, point the gateway back at it:
 
 ```bash
-OPENCLAW_STATE_DIR=~/.openclaw openclaw gateway restart
+SYBILCLAW_STATE_DIR=~/.sybilclaw sybilclaw gateway restart
 ```
 
 Or set it permanently in your shell profile or launchd plist environment.
 </Accordion>
 
 <Accordion title="Channel logins lost (WhatsApp, Telegram, etc.)">
-Channel credentials are stored in `~/.openclaw/credentials/`. If they were preserved during migration, channels should reconnect automatically. If not:
+Channel credentials are stored in `~/.sybilclaw/credentials/`. If they were preserved during migration, channels should reconnect automatically. If not:
 
-1. Run `openclaw doctor` — it will detect broken channel state
+1. Run `sybilclaw doctor` — it will detect broken channel state
 2. Re-authenticate only the affected channel (you do not need to redo all channels)
    </Accordion>
 
 <Accordion title="Multi-user: agents can still read each other's memory">
-`memoryAllowedPaths` must be explicitly configured per agent — it is not enforced by default (backward compatibility). Verify each agent entry in `openclaw.json` has its own `memoryAllowedPaths` array that excludes other users' directories.
+`memoryAllowedPaths` must be explicitly configured per agent — it is not enforced by default (backward compatibility). Verify each agent entry in `~/.sybilclaw/sybilclaw.json` has its own `memoryAllowedPaths` array that excludes other users' directories.
 </Accordion>
 
 </AccordionGroup>
