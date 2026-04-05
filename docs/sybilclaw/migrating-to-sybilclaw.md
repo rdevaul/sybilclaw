@@ -50,7 +50,23 @@ SybilClaw uses `~/.sybilclaw/` as its state directory and `sybilclaw.json` as it
 
 <Step title="Install SybilClaw">
 
-Clone the SybilClaw repo and install:
+**Option A — npm (recommended)**
+
+Install the latest published release directly from npm:
+
+```bash
+npm install -g sybilclaw
+```
+
+Or pin a specific version:
+
+```bash
+npm install -g sybilclaw@2026.4.1
+```
+
+**Option B — build from source**
+
+Use this if you want to run unreleased changes from `main` or a specific branch:
 
 ```bash
 git clone https://github.com/rdevaul/sybilclaw.git
@@ -60,7 +76,7 @@ pnpm build
 npm install -g .
 ```
 
-Verify the install:
+**Verify the install:**
 
 ```bash
 sybilclaw --version
