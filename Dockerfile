@@ -245,6 +245,10 @@ ENV NODE_ENV=production
 # Security hardening: Run as non-root user
 # The node:24-bookworm image includes a 'node' user (uid 1000)
 # This reduces the attack surface by preventing container escape via root privileges
+
+# Create required directories for the node user before switching to non-root
+RUN mkdir -p /home/node/.sybilclaw/devices && chown -R node:node /home/node/.sybilclaw
+
 USER node
 
 # Start gateway server with default config.
