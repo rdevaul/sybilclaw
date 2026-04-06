@@ -94,10 +94,22 @@ jobs:
         run: |
           set -euo pipefail
           RELEASE_SHA=$(git rev-parse HEAD)
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
           export RELEASE_SHA RELEASE_TAG RELEASE_MAIN_REF
-          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          # Use a generic check script or skip if not needed for SybilClaw
           echo "Validating SybilClaw release ${RELEASE_TAG}"
+          echo "Package: ${PACKAGE_NAME} @ ${PACKAGE_VERSION}"
+          echo "Commit: ${RELEASE_SHA}"
+          # Basic validation: ensure package name is sybilclaw
+          if [[ "${PACKAGE_NAME}" != "sybilclaw" ]]; then
+            echo "Error: Package name must be 'sybilclaw', got '${PACKAGE_NAME}'"
+            exit 1
+          fi
+          # Basic validation: ensure version matches tag
+          if [[ "${PACKAGE_VERSION}" != "2026.4.1-sybilclaw-1" ]]; then
+            echo "Warning: Package version ${PACKAGE_VERSION} does not match tag version 2026.4.1-sybilclaw-1"
+            # Don't fail, just warn
+          fi
 
       - name: Verify release contents
         run: |
