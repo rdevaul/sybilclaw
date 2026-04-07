@@ -59,13 +59,17 @@ function hasTrustedOpenClawRootIndicator(params: {
     return false;
   }
   const hasCliEntryExport = Object.prototype.hasOwnProperty.call(packageExports, "./cli-entry");
+  const knownBinNames = ["openclaw", "sybilclaw"];
+  const binValue = params.packageJson.bin;
   const hasOpenClawBin =
-    (typeof params.packageJson.bin === "string" &&
-      params.packageJson.bin.toLowerCase().includes("openclaw")) ||
-    (typeof params.packageJson.bin === "object" &&
-      params.packageJson.bin !== null &&
-      typeof params.packageJson.bin.openclaw === "string");
-  const hasOpenClawEntrypoint = fs.existsSync(path.join(params.packageRoot, "openclaw.mjs"));
+    (typeof binValue === "string" &&
+      knownBinNames.some((name) => binValue.toLowerCase().includes(name))) ||
+    (typeof binValue === "object" &&
+      binValue !== null &&
+      knownBinNames.some((name) => typeof binValue[name] === "string"));
+  const hasOpenClawEntrypoint =
+    fs.existsSync(path.join(params.packageRoot, "openclaw.mjs")) ||
+    fs.existsSync(path.join(params.packageRoot, "sybilclaw.mjs"));
   return hasCliEntryExport || hasOpenClawBin || hasOpenClawEntrypoint;
 }
 
