@@ -236,6 +236,7 @@ jobs:
 
       - name: Publish
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           OPENCLAW_PREPACK_PREPARED: "1"
         run: |
           set -euo pipefail
