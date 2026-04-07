@@ -28,6 +28,7 @@
     "assets/",
     "dist/",
     "!dist/**/*.map",
+    "!dist/extensions/",
     "dist-runtime/",
     "docs/",
     "!docs/.generated/**",
