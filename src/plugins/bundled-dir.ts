@@ -28,7 +28,7 @@ function resolveBundledDirFromPackageRoot(
   // dist-runtime/. Prefer that over source extensions only when the paired
   // dist/ tree exists; otherwise wrappers can drift ahead of the last build.
   const runtimeExtensionsDir = path.join(packageRoot, "dist-runtime", "extensions");
-  if (fs.existsSync(runtimeExtensionsDir) && fs.existsSync(builtExtensionsDir)) {
+  if (fs.existsSync(runtimeExtensionsDir)) {
     return runtimeExtensionsDir;
   }
   if (fs.existsSync(builtExtensionsDir)) {
