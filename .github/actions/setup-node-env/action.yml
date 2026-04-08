@@ -39,6 +39,7 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         check-latest: false
+        registry-url: 'https://registry.npmjs.org'
 
     - name: Setup pnpm + cache store
       uses: ./.github/actions/setup-pnpm-store-cache

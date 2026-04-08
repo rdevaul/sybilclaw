@@ -43,6 +43,15 @@ export function buildOpenrouterProvider(): ModelProviderConfig {
         contextWindow: 262144,
         maxTokens: 65536,
       },
+      {
+        id: "google/gemma-4-26b-a4b-it",
+        name: "Gemma 4 26B A4B",
+        reasoning: false,
+        input: ["text", "image"],
+        cost: { input: 0.13, output: 0.4, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 262144,
+        maxTokens: 262144,
+      },
     ],
   };
 }
