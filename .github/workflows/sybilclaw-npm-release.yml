@@ -161,6 +161,8 @@ jobs:
     if: ${{ !inputs.preflight_only }}
     runs-on: ubuntu-latest
     environment: npm-release
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     permissions:
       actions: read
       contents: read
