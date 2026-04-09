@@ -56,6 +56,7 @@ jobs:
           pnpm-version: ${{ env.PNPM_VERSION }}
           install-bun: "false"
           use-sticky-disk: "false"
+          registry-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Ensure version is not already published
         env:
@@ -191,6 +192,7 @@ jobs:
           pnpm-version: ${{ env.PNPM_VERSION }}
           install-bun: "false"
           use-sticky-disk: "false"
+          registry-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Ensure version is not already published
         run: |

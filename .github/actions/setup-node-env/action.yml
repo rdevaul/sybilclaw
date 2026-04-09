@@ -23,6 +23,10 @@ inputs:
     description: Request Blacksmith sticky-disk pnpm caching on trusted runs; pull_request runs fall back to actions/cache.
     required: false
     default: "false"
+  registry-token:
+    description: Auth token for npm registry (passed to setup-node's registry-token to generate .npmrc auth entry).
+    required: false
+    default: ""
   install-deps:
     description: Whether to run pnpm install after environment setup.
     required: false
@@ -40,6 +44,7 @@ runs:
         node-version: ${{ inputs.node-version }}
         check-latest: false
         registry-url: 'https://registry.npmjs.org'
+        registry-token: ${{ inputs.registry-token }}
 
     - name: Setup pnpm + cache store
       uses: ./.github/actions/setup-pnpm-store-cache
