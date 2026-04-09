@@ -24,7 +24,7 @@ inputs:
     required: false
     default: "false"
   registry-token:
-    description: Auth token for npm registry (passed to setup-node's registry-token to generate .npmrc auth entry).
+    description: Auth token for npm registry (passed to setup-node's token to generate .npmrc auth entry).
     required: false
     default: ""
   install-deps:
@@ -44,7 +44,7 @@ runs:
         node-version: ${{ inputs.node-version }}
         check-latest: false
         registry-url: 'https://registry.npmjs.org'
-        registry-token: ${{ inputs.registry-token }}
+        token: ${{ inputs.registry-token }}
 
     - name: Setup pnpm + cache store
       uses: ./.github/actions/setup-pnpm-store-cache
