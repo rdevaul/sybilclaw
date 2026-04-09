@@ -82,6 +82,10 @@ EXAMPLES:
   $(basename "$0") --dry-run          # Preview changes
   $(basename "$0") --include-logs     # Also copy logs/
 
+  # Profile-suffixed state directories (e.g. OpenClaw profile=Jarvis):
+  $(basename "$0") --source ~/.openclaw-Jarvis --dest ~/.sybilclaw-Jarvis
+  $(basename "$0") --source ~/.openclaw-Jarvis --dest ~/.sybilclaw-Jarvis --dry-run
+
 EOF
 }
 
