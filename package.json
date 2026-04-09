@@ -1,17 +1,17 @@
 {
   "name": "sybilclaw",
-  "version": "2026.4.1-sybilclaw-1",
+  "version": "2026.4.1-sybilclaw-4",
   "description": "Multi-channel AI gateway with extensible messaging integrations",
   "keywords": [],
-  "homepage": "https://github.com/openclaw/openclaw#readme",
+  "homepage": "https://github.com/rdevaul/sybilclaw#readme",
   "bugs": {
-    "url": "https://github.com/openclaw/openclaw/issues"
+    "url": "https://github.com/rdevaul/sybilclaw/issues"
   },
   "license": "MIT",
   "author": "",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openclaw/openclaw.git"
+    "url": "git+https://github.com/rdevaul/sybilclaw.git"
   },
   "bin": {
     "sybilclaw": "sybilclaw.mjs"
