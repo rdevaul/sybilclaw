@@ -287,20 +287,22 @@ export function resolveConfigDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string {
-  const override = env.OPENCLAW_STATE_DIR?.trim();
+  const override = env.SYBILCLAW_STATE_DIR?.trim() || env.OPENCLAW_STATE_DIR?.trim();
   if (override) {
     return resolveUserPath(override, env, homedir);
   }
-  const newDir = path.join(resolveRequiredHomeDir(env, homedir), ".openclaw");
+  const homeDir = resolveRequiredHomeDir(env, homedir);
+  const sybilDir = path.join(homeDir, ".sybilclaw");
   try {
-    const hasNew = fs.existsSync(newDir);
-    if (hasNew) {
-      return newDir;
+    const hasSybil = fs.existsSync(sybilDir);
+    if (hasSybil) {
+      return sybilDir;
     }
   } catch {
     // best-effort
   }
-  return newDir;
+  const legacyDir = path.join(homeDir, ".sybilclaw");
+  return legacyDir;
 }
 
 export function resolveHomeDir(): string | undefined {

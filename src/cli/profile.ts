@@ -84,7 +84,10 @@ function resolveProfileStateDir(
   homedir: () => string,
 ): string {
   const suffix = profile.toLowerCase() === "default" ? "" : `-${profile}`;
-  return path.join(resolveRequiredHomeDir(env as NodeJS.ProcessEnv, homedir), `.openclaw${suffix}`);
+  return path.join(
+    resolveRequiredHomeDir(env as NodeJS.ProcessEnv, homedir),
+    `.sybilclaw${suffix}`,
+  );
 }
 
 export function applyCliProfileEnv(params: {

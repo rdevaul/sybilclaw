@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { enableCompileCache } from "node:module";
+import os from "node:os";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { isRootHelpInvocation, isRootVersionInvocation } from "./cli/argv.js";
@@ -49,6 +50,21 @@ if (
   await installGaxiosFetchCompat();
   process.title = "openclaw";
   ensureOpenClawExecMarkerOnProcess();
+
+  // When invoked as sybilclaw, default state dir to ~/.sybilclaw instead of ~/.openclaw
+  const invokedAs = fileURLToPath(import.meta.url)
+    .replace(/\.m?js$/, "")
+    .replace(/\.ts$/, "");
+  if (
+    invokedAs.endsWith("sybilclaw") ||
+    process.argv[1]?.includes("sybilclaw") ||
+    process.env._?.endsWith("sybilclaw")
+  ) {
+    process.env.SYBILCLAW_STATE_DIR ??= process.env.HOME
+      ? `${process.env.HOME}/.sybilclaw`
+      : `${os.homedir()}/.sybilclaw`;
+  }
+
   installProcessWarningFilter();
   normalizeEnv();
   if (!isTruthyEnvValue(process.env.NODE_DISABLE_COMPILE_CACHE)) {
