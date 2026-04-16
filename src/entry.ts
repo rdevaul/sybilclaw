@@ -4,9 +4,10 @@ import { enableCompileCache } from "node:module";
 import os from "node:os";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { isRootHelpInvocation } from "./cli/argv.js";
+import { isRootHelpInvocation, isRootVersionInvocation } from "./cli/argv.js";
 import { parseCliContainerArgs, resolveCliContainerTarget } from "./cli/container-target.js";
 import { applyCliProfileEnv, parseCliProfileArgs } from "./cli/profile.js";
+import { assertNotRoot } from "./cli/root-guard.js";
 import { normalizeWindowsArgv } from "./cli/windows-argv.js";
 import { buildCliRespawnPlan } from "./entry.respawn.js";
 import { tryHandleRootVersionFastPath } from "./entry.version-fast-path.js";
@@ -44,7 +45,7 @@ if (
     wrapperEntryPairs: [...ENTRY_WRAPPER_PAIRS],
   })
 ) {
-  // Imported as a dependency — skip all entry-point side effects.
+  // Imported as a dependency â€” skip all entry-point side effects.
 } else {
   process.title = "openclaw";
   ensureOpenClawExecMarkerOnProcess();
@@ -65,6 +66,13 @@ if (
 
   installProcessWarningFilter();
   normalizeEnv();
+
+  // Block root execution early, before any state/config operations.
+  // Allow --help and --version so users can still discover the override env var.
+  if (!isRootHelpInvocation(process.argv) && !isRootVersionInvocation(process.argv)) {
+    assertNotRoot();
+  }
+
   if (!isTruthyEnvValue(process.env.NODE_DISABLE_COMPILE_CACHE)) {
     try {
       enableCompileCache();
