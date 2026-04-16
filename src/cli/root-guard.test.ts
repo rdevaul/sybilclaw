@@ -39,6 +39,13 @@ describe("assertNotRoot", () => {
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
+  it("does not exit when uid is 0 and OPENCLAW_CLI_CONTAINER_BYPASS=1", async () => {
+    process.getuid = () => 0;
+    const assertNotRoot = await loadAssertNotRoot();
+    assertNotRoot({ OPENCLAW_CLI_CONTAINER_BYPASS: "1" });
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
   it("does not exit when uid is non-zero", async () => {
     process.getuid = () => 1000;
     const assertNotRoot = await loadAssertNotRoot();
