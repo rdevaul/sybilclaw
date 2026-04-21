@@ -174,6 +174,22 @@ export function buildBuiltinChatCommands(): ChatCommandDefinition[] {
       category: "status",
     }),
     defineChatCommand({
+      key: "skills",
+      nativeName: "skills",
+      description: "Show active skills for this agent.",
+      textAlias: "/skills",
+      category: "status",
+      args: [
+        {
+          name: "mode",
+          description: "list or all",
+          type: "string",
+          choices: ["list", "all"],
+        },
+      ],
+      argsMenu: "auto",
+    }),
+    defineChatCommand({
       key: "allowlist",
       description: "List/add/remove allowlist entries.",
       textAlias: "/allowlist",

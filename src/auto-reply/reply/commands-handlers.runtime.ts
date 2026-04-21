@@ -28,6 +28,7 @@ import {
   handleStopCommand,
   handleUsageCommand,
 } from "./commands-session.js";
+import { handleSkillsCommand } from "./commands-skills.js";
 import { handleSubagentsCommand } from "./commands-subagents.js";
 import { handleTtsCommands } from "./commands-tts.js";
 import type { CommandHandler } from "./commands-types.js";
@@ -60,6 +61,7 @@ export function loadCommandHandlers(): CommandHandler[] {
     handleConfigCommand,
     handleDebugCommand,
     handleModelsCommand,
+    handleSkillsCommand,
     handleStopCommand,
     handleCompactCommand,
     handleAbortTrigger,
