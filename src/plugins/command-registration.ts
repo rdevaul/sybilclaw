@@ -55,6 +55,7 @@ export function validateCommandName(name: string): string | null {
     "allowlist",
     "activation",
     "skill",
+    "skills",
     "subagents",
     "kill",
     "steer",
