@@ -71,8 +71,13 @@ export type AgentConfig = {
   reasoningDefault?: "on" | "off" | "stream";
   /** Optional per-agent default for fast mode. */
   fastModeDefault?: boolean;
-  /** Optional allowlist of skills for this agent (omit = all skills; empty = none). */
-  skills?: string[];
+  /**
+   * Per-agent skill configuration.
+   * - `string[]` (legacy): strict allowlist — only these skills are available.
+   * - `AgentSkillsConfig`: additive/subtractive config relative to system defaults.
+   * - `undefined`: use system defaults (or all skills if defaults not configured).
+   */
+  skills?: AgentSkillsConfig | string[];
   memorySearch?: MemorySearchConfig;
   /** Human-like delay between block replies for this agent. */
   humanDelay?: HumanDelayConfig;
@@ -110,6 +115,19 @@ export type AgentConfig = {
   memoryAllowedPaths?: string[];
   /** Optional runtime descriptor for this agent. */
   runtime?: AgentRuntimeConfig;
+};
+
+/**
+ * Per-agent skill configuration with allow/deny semantics.
+ * Operates relative to the system `skills.defaults` baseline.
+ */
+export type AgentSkillsConfig = {
+  /** Skills to ADD beyond system defaults. */
+  allow?: string[];
+  /** Skills to REMOVE (even from system defaults). Deny wins over allow. */
+  deny?: string[];
+  /** If true, this agent gets NO system defaults — only explicitly allowed skills. */
+  noDefaults?: boolean;
 };
 
 export type AgentsConfig = {

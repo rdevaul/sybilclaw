@@ -40,6 +40,11 @@ export type SkillsLimitsConfig = {
 export type SkillsConfig = {
   /** Optional bundled-skill allowlist (only affects bundled skills). */
   allowBundled?: string[];
+  /**
+   * System default skills included for ALL agents unless denied.
+   * If not set, all eligible skills are included (backward compatible).
+   */
+  defaults?: string[];
   load?: SkillsLoadConfig;
   install?: SkillsInstallConfig;
   limits?: SkillsLimitsConfig;
