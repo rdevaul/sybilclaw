@@ -782,7 +782,18 @@ export const AgentEntrySchema = z
       .optional(),
     reasoningDefault: z.enum(["on", "off", "stream"]).optional(),
     fastModeDefault: z.boolean().optional(),
-    skills: z.array(z.string()).optional(),
+    skills: z
+      .union([
+        z.array(z.string()),
+        z
+          .object({
+            allow: z.array(z.string()).optional(),
+            deny: z.array(z.string()).optional(),
+            noDefaults: z.boolean().optional(),
+          })
+          .strict(),
+      ])
+      .optional(),
     memorySearch: MemorySearchSchema,
     humanDelay: HumanDelaySchema.optional(),
     heartbeat: HeartbeatSchema,

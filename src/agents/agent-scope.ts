@@ -11,7 +11,12 @@ import {
   resolveAgentIdFromSessionKey,
 } from "../routing/session-key.js";
 import { resolveUserPath } from "../utils.js";
-import { normalizeSkillFilter } from "./skills/filter.js";
+import {
+  type ResolvedSkillSet,
+  resolveAgentSkillSet,
+  resolveSystemDefaults,
+  warnIfDefaultsNotConfigured,
+} from "./skills/defaults.js";
 import { resolveDefaultAgentWorkspaceDir } from "./workspace.js";
 
 let log: ReturnType<typeof createSubsystemLogger> | null = null;
@@ -146,7 +151,7 @@ export function resolveAgentConfig(
     thinkingDefault: entry.thinkingDefault,
     reasoningDefault: entry.reasoningDefault,
     fastModeDefault: entry.fastModeDefault,
-    skills: Array.isArray(entry.skills) ? entry.skills : undefined,
+    skills: entry.skills,
     memorySearch: entry.memorySearch,
     humanDelay: entry.humanDelay,
     heartbeat: entry.heartbeat,
@@ -166,11 +171,36 @@ export function resolveAgentConfig(
   };
 }
 
+/**
+ * Resolve the effective skill set for an agent.
+ * Returns a `ResolvedSkillSet` that encodes allow/deny/unrestricted semantics.
+ *
+ * @deprecated Use `resolveAgentSkillSet` from `./skills/defaults.js` for new code.
+ *   This wrapper is kept for backward-compatible call sites.
+ */
 export function resolveAgentSkillsFilter(
   cfg: OpenClawConfig,
   agentId: string,
 ): string[] | undefined {
-  return normalizeSkillFilter(resolveAgentConfig(cfg, agentId)?.skills);
+  const resolved = resolveAgentResolvedSkillSet(cfg, agentId);
+  if (resolved.isUnrestricted) {
+    return undefined;
+  }
+  return Array.from(resolved.names);
+}
+
+/**
+ * Resolve the full `ResolvedSkillSet` for an agent, incorporating
+ * system defaults and per-agent allow/deny configuration.
+ */
+export function resolveAgentResolvedSkillSet(
+  cfg: OpenClawConfig,
+  agentId: string,
+): ResolvedSkillSet {
+  warnIfDefaultsNotConfigured(cfg);
+  const systemDefaults = resolveSystemDefaults(cfg);
+  const agentSkills = resolveAgentConfig(cfg, agentId)?.skills;
+  return resolveAgentSkillSet(agentSkills, systemDefaults);
 }
 
 function resolveModelPrimary(raw: unknown): string | undefined {
