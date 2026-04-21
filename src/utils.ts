@@ -301,7 +301,7 @@ export function resolveConfigDir(
   } catch {
     // best-effort
   }
-  const legacyDir = path.join(homeDir, ".sybilclaw");
+  const legacyDir = path.join(homeDir, ".openclaw");
   return legacyDir;
 }
 

@@ -16,7 +16,7 @@ import type {
 
 const COMPILED_SECRET_TARGET_REGISTRY = SECRET_TARGET_REGISTRY.map(compileTargetRegistryEntry);
 const OPENCLAW_COMPILED_SECRET_TARGETS = COMPILED_SECRET_TARGET_REGISTRY.filter(
-  (entry) => entry.configFile === "openclaw.json",
+  (entry) => entry.configFile === "sybilclaw.json" || entry.configFile === "openclaw.json",
 );
 const AUTH_PROFILES_COMPILED_SECRET_TARGETS = COMPILED_SECRET_TARGET_REGISTRY.filter(
   (entry) => entry.configFile === "auth-profiles.json",

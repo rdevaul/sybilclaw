@@ -13179,7 +13179,7 @@ export const GENERATED_BASE_CONFIG_SCHEMA = {
     },
     "agents.defaults.memorySearch.store.path": {
       label: "Memory Search Index Path",
-      help: "Sets where the SQLite memory index is stored on disk for each agent. Keep the default `~/.openclaw/memory/{agentId}.sqlite` unless you need custom storage placement or backup policy alignment.",
+      help: "Sets where the SQLite memory index is stored on disk for each agent. Keep the default `~/.sybilclaw/memory/{agentId}.sqlite` unless you need custom storage placement or backup policy alignment.",
       tags: ["storage"],
     },
     "agents.defaults.memorySearch.store.vector.enabled": {
