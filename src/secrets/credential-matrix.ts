@@ -3,7 +3,7 @@ import { UNSUPPORTED_SECRETREF_SURFACE_PATTERNS } from "./unsupported-surface-po
 
 type CredentialMatrixEntry = {
   id: string;
-  configFile: "openclaw.json" | "auth-profiles.json";
+  configFile: "openclaw.json" | "sybilclaw.json" | "auth-profiles.json";
   path: string;
   refPath?: string;
   when?: { type: "api_key" | "token" };
