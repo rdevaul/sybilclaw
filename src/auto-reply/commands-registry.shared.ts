@@ -176,15 +176,21 @@ export function buildBuiltinChatCommands(): ChatCommandDefinition[] {
     defineChatCommand({
       key: "skills",
       nativeName: "skills",
-      description: "Show active skills for this agent.",
+      description: "Manage skills: list, enable, disable, or reset.",
       textAlias: "/skills",
       category: "status",
       args: [
         {
-          name: "mode",
-          description: "list or all",
+          name: "action",
+          description: "Action to perform",
           type: "string",
-          choices: ["list", "all"],
+          choices: ["list", "all", "enable", "disable", "reset"],
+        },
+        {
+          name: "name",
+          description: "Skill name (for enable/disable)",
+          type: "string",
+          captureRemaining: true,
         },
       ],
       argsMenu: "auto",
