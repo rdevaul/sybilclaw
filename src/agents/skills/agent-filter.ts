@@ -30,7 +30,8 @@ export function resolveEffectiveAgentSkillFilter(
   }
   const agentEntry = resolveAgentEntry(cfg, agentId);
   if (agentEntry && Object.hasOwn(agentEntry, "skills")) {
-    return normalizeSkillFilter(agentEntry.skills);
+    const raw = agentEntry.skills as string[] | undefined;
+    return normalizeSkillFilter(raw);
   }
   return normalizeSkillFilter(cfg.agents?.defaults?.skills);
 }

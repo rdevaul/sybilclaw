@@ -145,16 +145,11 @@ export function resolveConfigDir(
   if (configPath) {
     return path.dirname(resolveUserPath(configPath, env, homedir));
   }
-  const newDir = path.join(resolveRequiredHomeDir(env, homedir), ".openclaw");
-  try {
-    const hasSybil = fs.existsSync(sybilDir);
-    if (hasSybil) {
-      return sybilDir;
-    }
-  } catch {
-    // best-effort
+  const newDir = path.join(resolveRequiredHomeDir(env, homedir), ".sybilclaw");
+  if (fs.existsSync(newDir)) {
+    return newDir;
   }
-  const legacyDir = path.join(homeDir, ".openclaw");
+  const legacyDir = path.join(resolveRequiredHomeDir(env, homedir), ".openclaw");
   return legacyDir;
 }
 

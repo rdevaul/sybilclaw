@@ -1,8 +1,4 @@
-import {
-  resolveSessionAgentId,
-  resolveAgentResolvedSkillSet,
-  resolveAgentConfig,
-} from "../../agents/agent-scope.js";
+import { resolveSessionAgentId, resolveAgentConfig } from "../../agents/agent-scope.js";
 import {
   loadWorkspaceSkillEntries,
   filterWorkspaceSkillEntries,
@@ -332,21 +328,48 @@ export const handleSkillsCommand: CommandHandler = async (params, allowTextComma
       resolveSessionAgentId({ sessionKey: params.sessionKey, config: params.cfg });
 
     const systemDefaults = resolveSystemDefaults(params.cfg);
-    const resolved = resolveAgentResolvedSkillSet(params.cfg, agentId);
+    const agentConfig = resolveAgentConfig(params.cfg, agentId);
+    const agentSkillsRaw: string[] | AgentSkillsConfig | undefined = agentConfig?.skills;
+
+    // Inline resolveAgentResolvedSkillSet logic
+    const names = new Set<string>();
+    const denied = new Set<string>();
+    let isUnrestricted: boolean;
+    if (!agentSkillsRaw || Array.isArray(agentSkillsRaw)) {
+      isUnrestricted = true;
+      if (Array.isArray(agentSkillsRaw)) {
+        for (const n of agentSkillsRaw) {
+          names.add(n);
+        }
+      } else {
+        for (const n of systemDefaults) {
+          names.add(n);
+        }
+      }
+    } else {
+      isUnrestricted = false;
+      // agentSkillsRaw is AgentSkillsConfig here
+      const allowList = agentSkillsRaw.allow ?? [];
+      const denyList = agentSkillsRaw.deny ?? [];
+      const base: string[] = allowList.length > 0 ? allowList : [...systemDefaults];
+      for (const n of base) {
+        if (!denyList.includes(n)) {
+          names.add(n);
+        }
+      }
+      for (const n of denyList) {
+        denied.add(n);
+      }
+    }
+    const resolved: ResolvedSkillSet = { names, denied, isUnrestricted };
+
+    const agentDeny: string[] = Array.from(denied);
 
     // Load all eligible workspace skill entries (unfiltered by agent)
     const allEntries = filterWorkspaceSkillEntries(
       loadWorkspaceSkillEntries(params.workspaceDir, { config: params.cfg }),
       params.cfg,
     );
-
-    // Extract agent deny from config
-    const agentConfig = resolveAgentConfig(params.cfg, agentId);
-    const agentSkills = agentConfig?.skills;
-    const agentDeny: string[] =
-      agentSkills && !Array.isArray(agentSkills)
-        ? (agentSkills.deny ?? []).filter((s): s is string => typeof s === "string")
-        : [];
 
     const text = showAll
       ? buildSkillsAllReply({ agentId, resolved, systemDefaults, allEntries })

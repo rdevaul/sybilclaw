@@ -226,26 +226,12 @@ export async function resolveBootstrapFilesForRun(params: {
 }): Promise<WorkspaceBootstrapFile[]> {
   const excludeHeartbeatBootstrapFile = shouldExcludeHeartbeatBootstrapFile(params);
   const sessionKey = params.sessionKey ?? params.sessionId;
-  const agentMemoryFiles =
-    params.config && params.agentId
-      ? resolveAgentMemoryFiles(params.config, params.agentId)
-      : undefined;
-  const agentMemoryAllowedPaths =
-    params.config && params.agentId
-      ? resolveAgentMemoryAllowedPaths(params.config, params.agentId)
-      : undefined;
   const rawFiles = params.sessionKey
     ? await getOrLoadBootstrapFiles({
         workspaceDir: params.workspaceDir,
         sessionKey: params.sessionKey,
-        agentMemoryFiles,
-        agentMemoryAllowedPaths,
       })
-    : await loadWorkspaceBootstrapFiles(
-        params.workspaceDir,
-        agentMemoryFiles,
-        agentMemoryAllowedPaths,
-      );
+    : await loadWorkspaceBootstrapFiles(params.workspaceDir);
   const bootstrapFiles = applyContextModeFilter({
     files: filterBootstrapFilesForSession(rawFiles, sessionKey),
     contextMode: params.contextMode,
