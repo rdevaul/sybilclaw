@@ -5,7 +5,7 @@ import type {
   ChannelConfigRuntimeParseResult,
   ChannelConfigSchema,
   ChannelConfigUiHint,
-} from "./types.plugin.js";
+} from "./types.config.js";
 
 type ZodSchemaWithToJsonSchema = ZodTypeAny & {
   toJSONSchema?: (params?: Record<string, unknown>) => unknown;
@@ -18,9 +18,7 @@ type ExtendableZodObject = ZodTypeAny & {
 export const AllowFromEntrySchema = z.union([z.string(), z.number()]);
 export const AllowFromListSchema = z.array(AllowFromEntrySchema).optional();
 
-export function buildNestedDmConfigSchema<TExtraShape extends ZodRawShape = {}>(
-  extraShape?: TExtraShape,
-) {
+export function buildNestedDmConfigSchema(extraShape?: ZodRawShape) {
   const baseShape = {
     enabled: z.boolean().optional(),
     policy: DmPolicySchema.optional(),
@@ -101,6 +99,36 @@ export function buildChannelConfigSchema(
     ...(options?.uiHints ? { uiHints: options.uiHints } : {}),
     runtime: {
       safeParse: (value) => safeParseRuntimeSchema(schema, value),
+    },
+  };
+}
+
+export function emptyChannelConfigSchema(): ChannelConfigSchema {
+  return {
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {},
+    },
+    runtime: {
+      safeParse(value) {
+        if (value === undefined) {
+          return { success: true, data: undefined };
+        }
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          return {
+            success: false,
+            issues: [{ path: [], message: "expected config object" }],
+          };
+        }
+        if (Object.keys(value as Record<string, unknown>).length > 0) {
+          return {
+            success: false,
+            issues: [{ path: [], message: "config must be empty" }],
+          };
+        }
+        return { success: true, data: value };
+      },
     },
   };
 }

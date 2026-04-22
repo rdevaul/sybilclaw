@@ -13,6 +13,7 @@ const { detectChangedScope, listChangedPaths } =
       runWindows: boolean;
       runSkillsPython: boolean;
       runChangedSmoke: boolean;
+      runControlUiI18n: boolean;
     };
     listChangedPaths: (base: string, head?: string) => string[];
   };
@@ -37,6 +38,7 @@ describe("detectChangedScope", () => {
       runWindows: true,
       runSkillsPython: true,
       runChangedSmoke: true,
+      runControlUiI18n: true,
     });
   });
 
@@ -48,6 +50,7 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
@@ -56,9 +59,10 @@ describe("detectChangedScope", () => {
       runNode: true,
       runMacos: false,
       runAndroid: false,
-      runWindows: true,
+      runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
@@ -70,6 +74,18 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
+    });
+    expect(
+      detectChangedScope(["apps/macos-mlx-tts/Sources/OpenClawMLXTTSHelper/main.swift"]),
+    ).toEqual({
+      runNode: false,
+      runMacos: true,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: false,
     });
     expect(detectChangedScope(["apps/shared/OpenClawKit/Sources/Foo.swift"])).toEqual({
       runNode: false,
@@ -78,6 +94,7 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
@@ -90,6 +107,7 @@ describe("detectChangedScope", () => {
         runWindows: false,
         runSkillsPython: false,
         runChangedSmoke: false,
+        runControlUiI18n: false,
       },
     );
   });
@@ -102,6 +120,7 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
 
     expect(detectChangedScope(["assets/icon.png"])).toEqual({
@@ -111,6 +130,7 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
@@ -122,6 +142,7 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
@@ -133,6 +154,7 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: true,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
@@ -144,17 +166,67 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: true,
       runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
-  it("runs platform lanes when the CI workflow changes", () => {
+  it("keeps native platform lanes scoped when the CI workflow changes", () => {
     expect(detectChangedScope([".github/workflows/ci.yml"])).toEqual({
       runNode: true,
-      runMacos: true,
-      runAndroid: true,
+      runMacos: false,
+      runAndroid: false,
       runWindows: true,
-      runSkillsPython: true,
+      runSkillsPython: false,
       runChangedSmoke: false,
+      runControlUiI18n: false,
+    });
+  });
+
+  it("runs Windows only for Windows-relevant changes", () => {
+    expect(detectChangedScope(["extensions/memory-lancedb/index.test.ts"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["src/auto-reply/reply/streaming-directives.ts"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["src/process/exec.ts"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: true,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["src/process/exec.windows.test.ts"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: true,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["scripts/npm-runner.mjs"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: true,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: false,
     });
   });
 
@@ -163,17 +235,19 @@ describe("detectChangedScope", () => {
       runNode: true,
       runMacos: false,
       runAndroid: false,
-      runWindows: true,
+      runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: true,
+      runControlUiI18n: false,
     });
     expect(detectChangedScope([bundledPluginFile("matrix", "package.json")])).toEqual({
       runNode: true,
       runMacos: false,
       runAndroid: false,
-      runWindows: true,
+      runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: true,
+      runControlUiI18n: false,
     });
     expect(detectChangedScope([".github/workflows/install-smoke.yml"])).toEqual({
       runNode: true,
@@ -182,6 +256,65 @@ describe("detectChangedScope", () => {
       runWindows: false,
       runSkillsPython: false,
       runChangedSmoke: true,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["scripts/e2e/qr-import-docker.sh"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: true,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["scripts/e2e/gateway-network-docker.sh"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: true,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["scripts/postinstall-bundled-plugins.mjs"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: true,
+      runControlUiI18n: false,
+    });
+    expect(detectChangedScope(["src/plugins/bundled-runtime-deps.ts"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: true,
+      runControlUiI18n: false,
+    });
+  });
+
+  it("runs control-ui locale check only for control-ui i18n surfaces", () => {
+    expect(detectChangedScope(["ui/src/i18n/locales/en.ts"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: true,
+    });
+
+    expect(detectChangedScope(["scripts/control-ui-i18n.ts"])).toEqual({
+      runNode: true,
+      runMacos: false,
+      runAndroid: false,
+      runWindows: false,
+      runSkillsPython: false,
+      runChangedSmoke: false,
+      runControlUiI18n: true,
     });
   });
 

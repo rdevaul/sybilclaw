@@ -1,13 +1,13 @@
 import fsPromises from "node:fs/promises";
 import path from "node:path";
+import { writeFileWithinRoot } from "openclaw/plugin-sdk/infra-runtime";
 import type {
-  SandboxContext,
   SandboxFsBridge,
   SandboxFsStat,
   SandboxResolvedPath,
 } from "openclaw/plugin-sdk/sandbox";
 import { createWritableRenameTargetResolver } from "openclaw/plugin-sdk/sandbox";
-import type { OpenShellSandboxBackend } from "./backend.js";
+import type { OpenShellFsBridgeContext, OpenShellSandboxBackend } from "./backend.types.js";
 import { movePathWithCopyFallback } from "./mirror.js";
 
 type ResolvedMountPath = SandboxResolvedPath & {
@@ -17,7 +17,7 @@ type ResolvedMountPath = SandboxResolvedPath & {
 };
 
 export function createOpenShellFsBridge(params: {
-  sandbox: SandboxContext;
+  sandbox: OpenShellFsBridgeContext;
   backend: OpenShellSandboxBackend;
 }): SandboxFsBridge {
   return new OpenShellFsBridge(params.sandbox, params.backend);
@@ -30,7 +30,7 @@ class OpenShellFsBridge implements SandboxFsBridge {
   );
 
   constructor(
-    private readonly sandbox: SandboxContext,
+    private readonly sandbox: OpenShellFsBridgeContext,
     private readonly backend: OpenShellSandboxBackend,
   ) {}
 
@@ -79,16 +79,12 @@ class OpenShellFsBridge implements SandboxFsBridge {
     const buffer = Buffer.isBuffer(params.data)
       ? params.data
       : Buffer.from(params.data, params.encoding ?? "utf8");
-    const parentDir = path.dirname(hostPath);
-    if (params.mkdir !== false) {
-      await fsPromises.mkdir(parentDir, { recursive: true });
-    }
-    const tempPath = path.join(
-      parentDir,
-      `.openclaw-openshell-write-${path.basename(hostPath)}-${process.pid}-${Date.now()}`,
-    );
-    await fsPromises.writeFile(tempPath, buffer);
-    await fsPromises.rename(tempPath, hostPath);
+    await writeFileWithinRoot({
+      rootDir: target.mountHostRoot,
+      relativePath: path.relative(target.mountHostRoot, hostPath),
+      data: buffer,
+      mkdir: params.mkdir,
+    });
     await this.backend.syncLocalPathToRemote(hostPath, target.containerPath);
   }
 
@@ -321,7 +317,7 @@ async function assertLocalPathSafety(params: {
     .slice(0, Math.max(0, relative.split(path.sep).filter(Boolean).length));
   let cursor = params.root;
   for (let index = 0; index < segments.length; index += 1) {
-    cursor = path.join(cursor, segments[index]!);
+    cursor = path.join(cursor, segments[index]);
     const stats = await fsPromises.lstat(cursor).catch(() => null);
     if (!stats) {
       if (index === segments.length - 1 && params.allowMissingLeaf) {

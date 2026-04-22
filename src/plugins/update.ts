@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "../config/config.js";
+import type { OpenClawConfig } from "../config/types.openclaw.js";
 import {
   expectedIntegrityForUpdate,
   readInstalledPackageVersion,
@@ -248,7 +248,7 @@ function createPluginUpdateIntegrityDriftHandler(params: {
     params.logger.warn?.(
       `Integrity drift for "${params.pluginId}" (${payload.resolvedSpec ?? payload.spec}): expected ${payload.expectedIntegrity}, got ${payload.actualIntegrity}`,
     );
-    return true;
+    return false;
   };
 }
 
@@ -258,6 +258,7 @@ export async function updateNpmInstalledPlugins(params: {
   pluginIds?: string[];
   skipIds?: Set<string>;
   dryRun?: boolean;
+  dangerouslyForceUnsafeInstall?: boolean;
   specOverrides?: Record<string, string>;
   onIntegrityDrift?: (params: PluginUpdateIntegrityDriftParams) => boolean | Promise<boolean>;
 }): Promise<PluginUpdateSummary> {
@@ -359,6 +360,7 @@ export async function updateNpmInstalledPlugins(params: {
                 spec: effectiveSpec!,
                 mode: "update",
                 dryRun: true,
+                dangerouslyForceUnsafeInstall: params.dangerouslyForceUnsafeInstall,
                 expectedPluginId: pluginId,
                 expectedIntegrity,
                 onIntegrityDrift: createPluginUpdateIntegrityDriftHandler({
@@ -375,6 +377,7 @@ export async function updateNpmInstalledPlugins(params: {
                   baseUrl: record.clawhubUrl,
                   mode: "update",
                   dryRun: true,
+                  dangerouslyForceUnsafeInstall: params.dangerouslyForceUnsafeInstall,
                   expectedPluginId: pluginId,
                   logger,
                 })
@@ -383,6 +386,7 @@ export async function updateNpmInstalledPlugins(params: {
                   plugin: record.marketplacePlugin!,
                   mode: "update",
                   dryRun: true,
+                  dangerouslyForceUnsafeInstall: params.dangerouslyForceUnsafeInstall,
                   expectedPluginId: pluginId,
                   logger,
                 });
@@ -456,6 +460,7 @@ export async function updateNpmInstalledPlugins(params: {
           ? await installPluginFromNpmSpec({
               spec: effectiveSpec!,
               mode: "update",
+              dangerouslyForceUnsafeInstall: params.dangerouslyForceUnsafeInstall,
               expectedPluginId: pluginId,
               expectedIntegrity,
               onIntegrityDrift: createPluginUpdateIntegrityDriftHandler({
@@ -471,6 +476,7 @@ export async function updateNpmInstalledPlugins(params: {
                 spec: effectiveSpec ?? `clawhub:${record.clawhubPackage!}`,
                 baseUrl: record.clawhubUrl,
                 mode: "update",
+                dangerouslyForceUnsafeInstall: params.dangerouslyForceUnsafeInstall,
                 expectedPluginId: pluginId,
                 logger,
               })
@@ -478,6 +484,7 @@ export async function updateNpmInstalledPlugins(params: {
                 marketplace: record.marketplaceSource!,
                 plugin: record.marketplacePlugin!,
                 mode: "update",
+                dangerouslyForceUnsafeInstall: params.dangerouslyForceUnsafeInstall,
                 expectedPluginId: pluginId,
                 logger,
               });

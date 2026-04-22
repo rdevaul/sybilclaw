@@ -11,10 +11,28 @@ Config helpers for non-interactive edits in `openclaw.json`: get/set/unset/file/
 values by path and print the active config file. Run without a subcommand to
 open the configure wizard (same as `openclaw configure`).
 
+Root options:
+
+- `--section <section>`: repeatable guided-setup section filter when you run `openclaw config` without a subcommand
+
+Supported guided sections:
+
+- `workspace`
+- `model`
+- `web`
+- `gateway`
+- `daemon`
+- `channels`
+- `plugins`
+- `skills`
+- `health`
+
 ## Examples
 
 ```bash
 openclaw config file
+openclaw config --section model
+openclaw config --section gateway --section daemon
 openclaw config schema
 openclaw config get browser.executablePath
 openclaw config set browser.executablePath "/usr/bin/google-chrome"
@@ -30,7 +48,23 @@ openclaw config validate --json
 
 ### `config schema`
 
-Print the generated JSON schema for `openclaw.json` to stdout as plain text.
+Print the generated JSON schema for `openclaw.json` to stdout as JSON.
+
+What it includes:
+
+- The current root config schema, plus a root `$schema` string field for editor tooling
+- Field `title` and `description` docs metadata used by the Control UI
+- Nested object, wildcard (`*`), and array-item (`[]`) nodes inherit the same `title` / `description` metadata when matching field documentation exists
+- `anyOf` / `oneOf` / `allOf` branches inherit the same docs metadata too when matching field documentation exists
+- Best-effort live plugin + channel schema metadata when runtime manifests can be loaded
+- A clean fallback schema even when the current config is invalid
+
+Related runtime RPC:
+
+- `config.schema.lookup` returns one normalized config path with a shallow
+  schema node (`title`, `description`, `type`, `enum`, `const`, common bounds),
+  matched UI hint metadata, and immediate child summaries. Use it for
+  path-scoped drill-down in Control UI or custom clients.
 
 ```bash
 openclaw config schema
@@ -68,6 +102,8 @@ openclaw config set agents.defaults.heartbeat.every "0m"
 openclaw config set gateway.port 19001 --strict-json
 openclaw config set channels.whatsapp.groups '["*"]' --strict-json
 ```
+
+`config get <path> --json` prints the raw value as JSON instead of terminal-formatted text.
 
 ## `config set` modes
 
@@ -300,6 +336,34 @@ If dry-run fails:
 - `Dry run note: skipped <n> exec SecretRef resolvability check(s)`: dry-run skipped exec refs; rerun with `--allow-exec` if you need exec resolvability validation.
 - For batch mode, fix failing entries and rerun `--dry-run` before writing.
 
+## Write safety
+
+`openclaw config set` and other OpenClaw-owned config writers validate the full
+post-change config before committing it to disk. If the new payload fails schema
+validation or looks like a destructive clobber, the active config is left alone
+and the rejected payload is saved beside it as `openclaw.json.rejected.*`.
+
+Prefer CLI writes for small edits:
+
+```bash
+openclaw config set gateway.reload.mode hybrid --dry-run
+openclaw config set gateway.reload.mode hybrid
+openclaw config validate
+```
+
+If a write is rejected, inspect the saved payload and fix the full config shape:
+
+```bash
+CONFIG="$(openclaw config file)"
+ls -lt "$CONFIG".rejected.* 2>/dev/null | head
+openclaw config validate
+```
+
+Direct editor writes are still allowed, but the running Gateway treats them as
+untrusted until they validate. Invalid direct edits can be restored from the
+last-known-good backup during startup or hot reload. See
+[Gateway troubleshooting](/gateway/troubleshooting#gateway-restored-last-known-good-config).
+
 ## Subcommands
 
 - `config file`: Print the active config file path (resolved from `OPENCLAW_CONFIG_PATH` or default location).
@@ -315,3 +379,31 @@ gateway.
 openclaw config validate
 openclaw config validate --json
 ```
+
+After `openclaw config validate` is passing, you can use the local TUI to have
+an embedded agent compare the active config against the docs while you validate
+each change from the same terminal:
+
+If validation is already failing, start with `openclaw configure` or
+`openclaw doctor --fix`. `openclaw chat` does not bypass the invalid-config
+guard.
+
+```bash
+openclaw chat
+```
+
+Then inside the TUI:
+
+```text
+!openclaw config file
+!openclaw docs gateway auth token secretref
+!openclaw config validate
+!openclaw doctor
+```
+
+Typical repair loop:
+
+- Ask the agent to compare your current config with the relevant docs page and suggest the smallest fix.
+- Apply targeted edits with `openclaw config set` or `openclaw configure`.
+- Rerun `openclaw config validate` after each change.
+- If validation passes but the runtime is still unhealthy, run `openclaw doctor` or `openclaw doctor --fix` for migration and repair help.

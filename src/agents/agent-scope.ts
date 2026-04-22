@@ -1,30 +1,41 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { OpenClawConfig } from "../config/config.js";
 import { resolveAgentModelFallbackValues } from "../config/model-input.js";
-import { resolveStateDir } from "../config/paths.js";
-import { createSubsystemLogger } from "../logging/subsystem.js";
+import type { AgentDefaultsConfig } from "../config/types.agent-defaults.js";
+import type { OpenClawConfig } from "../config/types.js";
 import {
-  DEFAULT_AGENT_ID,
   normalizeAgentId,
   parseAgentSessionKey,
   resolveAgentIdFromSessionKey,
 } from "../routing/session-key.js";
+import {
+  lowercasePreservingWhitespace,
+  normalizeLowercaseStringOrEmpty,
+  normalizeOptionalString,
+  resolvePrimaryStringValue,
+} from "../shared/string-coerce.js";
 import { resolveUserPath } from "../utils.js";
 import {
-  type ResolvedSkillSet,
-  resolveAgentSkillSet,
-  resolveSystemDefaults,
-  warnIfDefaultsNotConfigured,
-} from "./skills/defaults.js";
-import { resolveDefaultAgentWorkspaceDir } from "./workspace.js";
-
-let log: ReturnType<typeof createSubsystemLogger> | null = null;
-
-function getLog(): ReturnType<typeof createSubsystemLogger> {
-  log ??= createSubsystemLogger("agent-scope");
-  return log;
-}
+  listAgentEntries,
+  listAgentIds,
+  resolveAgentConfig,
+  resolveAgentContextLimits,
+  resolveAgentDir,
+  resolveAgentWorkspaceDir,
+  resolveDefaultAgentId,
+  type ResolvedAgentConfig,
+} from "./agent-scope-config.js";
+import { resolveEffectiveAgentSkillFilter } from "./skills/agent-filter.js";
+export {
+  listAgentEntries,
+  listAgentIds,
+  resolveAgentConfig,
+  resolveAgentContextLimits,
+  resolveAgentDir,
+  resolveAgentWorkspaceDir,
+  resolveDefaultAgentId,
+  type ResolvedAgentConfig,
+} from "./agent-scope-config.js";
 
 /** Strip null bytes from paths to prevent ENOTDIR errors. */
 function stripNullBytes(s: string): string {
@@ -33,71 +44,6 @@ function stripNullBytes(s: string): string {
 }
 
 export { resolveAgentIdFromSessionKey };
-
-type AgentEntry = NonNullable<NonNullable<OpenClawConfig["agents"]>["list"]>[number];
-
-type ResolvedAgentConfig = {
-  name?: string;
-  workspace?: string;
-  agentDir?: string;
-  model?: AgentEntry["model"];
-  thinkingDefault?: AgentEntry["thinkingDefault"];
-  reasoningDefault?: AgentEntry["reasoningDefault"];
-  fastModeDefault?: AgentEntry["fastModeDefault"];
-  skills?: AgentEntry["skills"];
-  memorySearch?: AgentEntry["memorySearch"];
-  humanDelay?: AgentEntry["humanDelay"];
-  heartbeat?: AgentEntry["heartbeat"];
-  identity?: AgentEntry["identity"];
-  groupChat?: AgentEntry["groupChat"];
-  subagents?: AgentEntry["subagents"];
-  sandbox?: AgentEntry["sandbox"];
-  tools?: AgentEntry["tools"];
-  memoryFile?: string[];
-  memoryAllowedPaths?: string[];
-};
-
-let defaultAgentWarned = false;
-
-export function listAgentEntries(cfg: OpenClawConfig): AgentEntry[] {
-  const list = cfg.agents?.list;
-  if (!Array.isArray(list)) {
-    return [];
-  }
-  return list.filter((entry): entry is AgentEntry => Boolean(entry && typeof entry === "object"));
-}
-
-export function listAgentIds(cfg: OpenClawConfig): string[] {
-  const agents = listAgentEntries(cfg);
-  if (agents.length === 0) {
-    return [DEFAULT_AGENT_ID];
-  }
-  const seen = new Set<string>();
-  const ids: string[] = [];
-  for (const entry of agents) {
-    const id = normalizeAgentId(entry?.id);
-    if (seen.has(id)) {
-      continue;
-    }
-    seen.add(id);
-    ids.push(id);
-  }
-  return ids.length > 0 ? ids : [DEFAULT_AGENT_ID];
-}
-
-export function resolveDefaultAgentId(cfg: OpenClawConfig): string {
-  const agents = listAgentEntries(cfg);
-  if (agents.length === 0) {
-    return DEFAULT_AGENT_ID;
-  }
-  const defaults = agents.filter((agent) => agent?.default);
-  if (defaults.length > 1 && !defaultAgentWarned) {
-    defaultAgentWarned = true;
-    getLog().warn("Multiple agents marked default=true; using the first entry as default.");
-  }
-  const chosen = (defaults[0] ?? agents[0])?.id?.trim();
-  return normalizeAgentId(chosen || DEFAULT_AGENT_ID);
-}
 
 export function resolveSessionAgentIds(params: {
   sessionKey?: string;
@@ -108,11 +54,10 @@ export function resolveSessionAgentIds(params: {
   sessionAgentId: string;
 } {
   const defaultAgentId = resolveDefaultAgentId(params.config ?? {});
-  const explicitAgentIdRaw =
-    typeof params.agentId === "string" ? params.agentId.trim().toLowerCase() : "";
+  const explicitAgentIdRaw = normalizeLowercaseStringOrEmpty(params.agentId);
   const explicitAgentId = explicitAgentIdRaw ? normalizeAgentId(explicitAgentIdRaw) : null;
   const sessionKey = params.sessionKey?.trim();
-  const normalizedSessionKey = sessionKey ? sessionKey.toLowerCase() : undefined;
+  const normalizedSessionKey = sessionKey ? normalizeLowercaseStringOrEmpty(sessionKey) : undefined;
   const parsed = normalizedSessionKey ? parseAgentSessionKey(normalizedSessionKey) : null;
   const sessionAgentId =
     explicitAgentId ?? (parsed?.agentId ? normalizeAgentId(parsed.agentId) : defaultAgentId);
@@ -126,49 +71,16 @@ export function resolveSessionAgentId(params: {
   return resolveSessionAgentIds(params).sessionAgentId;
 }
 
-function resolveAgentEntry(cfg: OpenClawConfig, agentId: string): AgentEntry | undefined {
-  const id = normalizeAgentId(agentId);
-  return listAgentEntries(cfg).find((entry) => normalizeAgentId(entry.id) === id);
-}
-
-export function resolveAgentConfig(
-  cfg: OpenClawConfig,
-  agentId: string,
-): ResolvedAgentConfig | undefined {
-  const id = normalizeAgentId(agentId);
-  const entry = resolveAgentEntry(cfg, id);
-  if (!entry) {
-    return undefined;
+export function resolveAgentExecutionContract(
+  cfg: OpenClawConfig | undefined,
+  agentId?: string | null,
+): NonNullable<NonNullable<AgentDefaultsConfig["embeddedPi"]>["executionContract"]> | undefined {
+  const defaultContract = cfg?.agents?.defaults?.embeddedPi?.executionContract;
+  if (!cfg || !agentId) {
+    return defaultContract;
   }
-  return {
-    name: typeof entry.name === "string" ? entry.name : undefined,
-    workspace: typeof entry.workspace === "string" ? entry.workspace : undefined,
-    agentDir: typeof entry.agentDir === "string" ? entry.agentDir : undefined,
-    model:
-      typeof entry.model === "string" || (entry.model && typeof entry.model === "object")
-        ? entry.model
-        : undefined,
-    thinkingDefault: entry.thinkingDefault,
-    reasoningDefault: entry.reasoningDefault,
-    fastModeDefault: entry.fastModeDefault,
-    skills: entry.skills,
-    memorySearch: entry.memorySearch,
-    humanDelay: entry.humanDelay,
-    heartbeat: entry.heartbeat,
-    identity: entry.identity,
-    groupChat: entry.groupChat,
-    subagents: typeof entry.subagents === "object" && entry.subagents ? entry.subagents : undefined,
-    sandbox: entry.sandbox,
-    tools: entry.tools,
-    memoryFile: entry.memoryFile
-      ? Array.isArray(entry.memoryFile)
-        ? entry.memoryFile.filter((f) => typeof f === "string")
-        : [entry.memoryFile]
-      : undefined,
-    memoryAllowedPaths: Array.isArray(entry.memoryAllowedPaths)
-      ? entry.memoryAllowedPaths
-      : undefined,
-  };
+  const agentContract = resolveAgentConfig(cfg, agentId)?.embeddedPi?.executionContract;
+  return agentContract ?? defaultContract;
 }
 
 /**
@@ -182,41 +94,7 @@ export function resolveAgentSkillsFilter(
   cfg: OpenClawConfig,
   agentId: string,
 ): string[] | undefined {
-  const resolved = resolveAgentResolvedSkillSet(cfg, agentId);
-  if (resolved.isUnrestricted) {
-    return undefined;
-  }
-  return Array.from(resolved.names);
-}
-
-/**
- * Resolve the full `ResolvedSkillSet` for an agent, incorporating
- * system defaults and per-agent allow/deny configuration.
- */
-export function resolveAgentResolvedSkillSet(
-  cfg: OpenClawConfig,
-  agentId: string,
-): ResolvedSkillSet {
-  warnIfDefaultsNotConfigured(cfg);
-  const systemDefaults = resolveSystemDefaults(cfg);
-  const agentSkills = resolveAgentConfig(cfg, agentId)?.skills;
-  return resolveAgentSkillSet(agentSkills, systemDefaults);
-}
-
-function resolveModelPrimary(raw: unknown): string | undefined {
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    return trimmed || undefined;
-  }
-  if (!raw || typeof raw !== "object") {
-    return undefined;
-  }
-  const primary = (raw as { primary?: unknown }).primary;
-  if (typeof primary !== "string") {
-    return undefined;
-  }
-  const trimmed = primary.trim();
-  return trimmed || undefined;
+  return resolveEffectiveAgentSkillFilter(cfg, agentId);
 }
 
 export function resolveAgentExplicitModelPrimary(
@@ -224,7 +102,7 @@ export function resolveAgentExplicitModelPrimary(
   agentId: string,
 ): string | undefined {
   const raw = resolveAgentConfig(cfg, agentId)?.model;
-  return resolveModelPrimary(raw);
+  return resolvePrimaryStringValue(raw);
 }
 
 export function resolveAgentEffectiveModelPrimary(
@@ -233,7 +111,7 @@ export function resolveAgentEffectiveModelPrimary(
 ): string | undefined {
   return (
     resolveAgentExplicitModelPrimary(cfg, agentId) ??
-    resolveModelPrimary(cfg.agents?.defaults?.model)
+    resolvePrimaryStringValue(cfg.agents?.defaults?.model)
   );
 }
 
@@ -261,7 +139,7 @@ export function resolveFallbackAgentId(params: {
   agentId?: string | null;
   sessionKey?: string | null;
 }): string {
-  const explicitAgentId = typeof params.agentId === "string" ? params.agentId.trim() : "";
+  const explicitAgentId = normalizeOptionalString(params.agentId) ?? "";
   if (explicitAgentId) {
     return normalizeAgentId(explicitAgentId);
   }
@@ -305,55 +183,6 @@ export function resolveEffectiveModelFallbacks(params: {
   return agentFallbacksOverride ?? defaultFallbacks;
 }
 
-export function resolveAgentWorkspaceDir(cfg: OpenClawConfig, agentId: string) {
-  const id = normalizeAgentId(agentId);
-  const configured = resolveAgentConfig(cfg, id)?.workspace?.trim();
-  if (configured) {
-    return stripNullBytes(resolveUserPath(configured));
-  }
-  const defaultAgentId = resolveDefaultAgentId(cfg);
-  if (id === defaultAgentId) {
-    const fallback = cfg.agents?.defaults?.workspace?.trim();
-    if (fallback) {
-      return stripNullBytes(resolveUserPath(fallback));
-    }
-    return stripNullBytes(resolveDefaultAgentWorkspaceDir(process.env));
-  }
-  const stateDir = resolveStateDir(process.env);
-  return stripNullBytes(path.join(stateDir, `workspace-${id}`));
-}
-
-export function resolveAgentMemoryFiles(
-  cfg: OpenClawConfig,
-  agentId: string,
-): string[] | undefined {
-  const id = normalizeAgentId(agentId);
-  const files = resolveAgentConfig(cfg, id)?.memoryFile;
-  if (!files || files.length === 0) {
-    return undefined;
-  }
-  const trimmed = files.map((f) => f.trim()).filter(Boolean);
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-/** @deprecated Use resolveAgentMemoryFiles instead */
-export function resolveAgentMemoryFile(cfg: OpenClawConfig, agentId: string): string | undefined {
-  return resolveAgentMemoryFiles(cfg, agentId)?.[0];
-}
-
-export function resolveAgentMemoryAllowedPaths(
-  cfg: OpenClawConfig,
-  agentId: string,
-): string[] | undefined {
-  const id = normalizeAgentId(agentId);
-  const paths = resolveAgentConfig(cfg, id)?.memoryAllowedPaths;
-  if (!paths || paths.length === 0) {
-    return undefined;
-  }
-  const trimmed = paths.map((p) => p.trim()).filter(Boolean);
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
 function normalizePathForComparison(input: string): string {
   const resolved = path.resolve(stripNullBytes(resolveUserPath(input)));
   let normalized = resolved;
@@ -365,7 +194,7 @@ function normalizePathForComparison(input: string): string {
     // Keep lexical path for non-existent directories.
   }
   if (process.platform === "win32") {
-    return normalized.toLowerCase();
+    return lowercasePreservingWhitespace(normalized);
   }
   return normalized;
 }
@@ -408,18 +237,4 @@ export function resolveAgentIdByWorkspacePath(
   workspacePath: string,
 ): string | undefined {
   return resolveAgentIdsByWorkspacePath(cfg, workspacePath)[0];
-}
-
-export function resolveAgentDir(
-  cfg: OpenClawConfig,
-  agentId: string,
-  env: NodeJS.ProcessEnv = process.env,
-) {
-  const id = normalizeAgentId(agentId);
-  const configured = resolveAgentConfig(cfg, id)?.agentDir?.trim();
-  if (configured) {
-    return resolveUserPath(configured, env);
-  }
-  const root = resolveStateDir(env);
-  return path.join(root, "agents", id, "agent");
 }
