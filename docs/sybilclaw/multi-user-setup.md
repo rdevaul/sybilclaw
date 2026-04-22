@@ -316,8 +316,53 @@ Each agent should have access to:
 - **Monitor memory growth** — Personal MEMORY.md files can grow; consider archiving or summarizing periodically
 - **Use shared context wisely** — Put household/team-wide information in `memory/shared/` and reference it from AGENTS.md
 
+## Per-User Skills
+
+SybilClaw supports per-agent skill allowlists to control which capabilities each agent has access to. This reduces the number of skills in context, improving dispatch accuracy and reducing token waste.
+
+### Quick Overview
+
+Each agent can have a `skills` field that adds or removes skills relative to system defaults:
+
+```json
+{
+  "id": "jarvis-rich",
+  "skills": {
+    "allow": ["rocket-design", "yapcad", "print-farm"],
+    "deny": ["food-order"]
+  }
+}
+```
+
+### Self-Service Management
+
+Users can manage their own skills via chat commands:
+
+- `/skills list` — Show active skills
+- `/skills all` — Show all installed skills with status
+- `/skills enable <name>` — Add a skill
+- `/skills disable <name>` — Remove a skill
+- `/skills reset` — Return to system defaults
+
+Changes take effect immediately via config hot-reload.
+
+### How It Fits the Multi-User Model
+
+Skill allowlists complement the memory isolation and channel binding features:
+
+| Layer            | What It Controls                 | Config Location                    |
+| ---------------- | -------------------------------- | ---------------------------------- |
+| Channel Binding  | Which user talks to which agent  | `bindings[]`                       |
+| Memory Isolation | What context each agent sees     | `memoryFile`, `memoryAllowedPaths` |
+| Skill Allowlists | What capabilities each agent has | `skills.allow/deny`                |
+
+Together, these three layers give each user a tailored experience without running separate instances.
+
+For full details on the skill dispatch framework, see [Skill Dispatch Framework](skill-dispatch-framework.md).
+
 ## Related Documentation
 
+- [Skill Dispatch Framework](skill-dispatch-framework.md) — Per-user skill configuration, the `/skills` command, and the dispatcher
 - [Context Graph Architecture](context-graph-architecture.md) — Tag-based context management system
 - [OpenClaw Configuration Reference](https://docs.openclaw.ai/configuration) — Full config options
 - [Agent Configuration](https://docs.openclaw.ai/agents) — Agent-specific settings

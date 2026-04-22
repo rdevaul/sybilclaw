@@ -9,6 +9,8 @@ import {
   type SkillEntry,
 } from "../../agents/skills.js";
 import { resolveSystemDefaults, type ResolvedSkillSet } from "../../agents/skills/defaults.js";
+import { mutateConfigFile } from "../../config/config.js";
+import type { AgentSkillsConfig } from "../../config/types.agents.js";
 import { logVerbose } from "../../globals.js";
 import type { CommandHandler } from "./commands-types.js";
 
@@ -125,6 +127,130 @@ function buildSkillsAllReply(params: {
   return lines.join("\n");
 }
 
+/**
+ * Normalize an agent's `skills` field to `AgentSkillsConfig`, handling the legacy `string[]` format.
+ */
+function toSkillsConfig(skills: AgentSkillsConfig | string[] | undefined): AgentSkillsConfig {
+  if (!skills) {
+    return {};
+  }
+  if (Array.isArray(skills)) {
+    return { allow: [...skills] };
+  }
+  return skills;
+}
+
+async function handleSkillEnable(
+  agentId: string,
+  skillName: string,
+  allEntries: SkillEntry[],
+): Promise<string> {
+  const exists = allEntries.some((e) => e.skill.name === skillName);
+  if (!exists) {
+    return `❌ Unknown skill: **${skillName}** — run /skills all to see available skills`;
+  }
+
+  await mutateConfigFile({
+    mutate: (draft) => {
+      const agents = draft.agents?.list;
+      if (!Array.isArray(agents)) {
+        return;
+      }
+      const agent = agents.find((a) => a.id === agentId);
+      if (!agent) {
+        return;
+      }
+
+      const cfg = toSkillsConfig(agent.skills);
+
+      // Add to allow if not already present
+      if (!cfg.allow) {
+        cfg.allow = [];
+      }
+      if (!cfg.allow.includes(skillName)) {
+        cfg.allow.push(skillName);
+      }
+
+      // Remove from deny if present
+      if (cfg.deny) {
+        cfg.deny = cfg.deny.filter((s) => s !== skillName);
+        if (cfg.deny.length === 0) {
+          delete cfg.deny;
+        }
+      }
+
+      agent.skills = cfg;
+    },
+  });
+
+  return `✅ Enabled skill **${skillName}** for ${agentId}`;
+}
+
+async function handleSkillDisable(
+  agentId: string,
+  skillName: string,
+  allEntries: SkillEntry[],
+): Promise<string> {
+  const exists = allEntries.some((e) => e.skill.name === skillName);
+  if (!exists) {
+    return `❌ Unknown skill: **${skillName}** — run /skills all to see available skills`;
+  }
+
+  await mutateConfigFile({
+    mutate: (draft) => {
+      const agents = draft.agents?.list;
+      if (!Array.isArray(agents)) {
+        return;
+      }
+      const agent = agents.find((a) => a.id === agentId);
+      if (!agent) {
+        return;
+      }
+
+      const cfg = toSkillsConfig(agent.skills);
+
+      // Add to deny if not already present
+      if (!cfg.deny) {
+        cfg.deny = [];
+      }
+      if (!cfg.deny.includes(skillName)) {
+        cfg.deny.push(skillName);
+      }
+
+      // Remove from allow if present
+      if (cfg.allow) {
+        cfg.allow = cfg.allow.filter((s) => s !== skillName);
+        if (cfg.allow.length === 0) {
+          delete cfg.allow;
+        }
+      }
+
+      agent.skills = cfg;
+    },
+  });
+
+  return `✅ Disabled skill **${skillName}** for ${agentId}`;
+}
+
+async function handleSkillReset(agentId: string): Promise<string> {
+  await mutateConfigFile({
+    mutate: (draft) => {
+      const agents = draft.agents?.list;
+      if (!Array.isArray(agents)) {
+        return;
+      }
+      const agent = agents.find((a) => a.id === agentId);
+      if (!agent) {
+        return;
+      }
+
+      delete agent.skills;
+    },
+  });
+
+  return `✅ Reset skills for **${agentId}** to system defaults`;
+}
+
 export const handleSkillsCommand: CommandHandler = async (params, allowTextCommands) => {
   if (!allowTextCommands) {
     return null;
@@ -134,6 +260,7 @@ export const handleSkillsCommand: CommandHandler = async (params, allowTextComma
     normalized !== "/skills" &&
     normalized !== "/skills list" &&
     normalized !== "/skills all" &&
+    normalized !== "/skills reset" &&
     !normalized.startsWith("/skills ")
   ) {
     return null;
@@ -147,10 +274,54 @@ export const handleSkillsCommand: CommandHandler = async (params, allowTextComma
 
   // Parse mode
   const args = normalized.slice("/skills".length).trim();
+  const subcommand = args.split(/\s+/)[0] ?? "";
+
+  // Route enable/disable/reset subcommands
+  if (subcommand === "enable" || subcommand === "disable" || subcommand === "reset") {
+    try {
+      const agentId =
+        params.agentId ??
+        resolveSessionAgentId({ sessionKey: params.sessionKey, config: params.cfg });
+
+      if (subcommand === "reset") {
+        const text = await handleSkillReset(agentId);
+        return { shouldContinue: false, reply: { text } };
+      }
+
+      const skillName = args.slice(subcommand.length).trim();
+      if (!skillName) {
+        return {
+          shouldContinue: false,
+          reply: { text: `Usage: /skills ${subcommand} <name>` },
+        };
+      }
+
+      // Load all eligible workspace skill entries (unfiltered by agent)
+      const allEntries = filterWorkspaceSkillEntries(
+        loadWorkspaceSkillEntries(params.workspaceDir, { config: params.cfg }),
+        params.cfg,
+      );
+
+      const text =
+        subcommand === "enable"
+          ? await handleSkillEnable(agentId, skillName, allEntries)
+          : await handleSkillDisable(agentId, skillName, allEntries);
+
+      return { shouldContinue: false, reply: { text } };
+    } catch (err) {
+      const message = String(err);
+      return {
+        shouldContinue: false,
+        reply: { text: `❌ Failed to update skills: ${message}` },
+      };
+    }
+  }
+
+  // Original list/all handling
   if (args && args !== "list" && args !== "all") {
     return {
       shouldContinue: false,
-      reply: { text: "Usage: /skills [list|all]" },
+      reply: { text: "Usage: /skills [list|all|enable <name>|disable <name>|reset]" },
     };
   }
   const showAll = args === "all";
