@@ -1605,7 +1605,8 @@
   "overrides": {
     "axios": "1.15.0",
     "follow-redirects": "1.16.0",
-    "node-domexception": "npm:@nolyfill/domexception@1.0.28"
+    "node-domexception": "npm:@nolyfill/domexception@1.0.28",
+    "uuid": "14.0.0"
   },
   "engines": {
     "node": ">=22.14.0"
@@ -1633,7 +1634,8 @@
       "tar": "7.5.13",
       "tough-cookie": "4.1.3",
       "yauzl": "3.2.1",
-      "protobufjs": "7.5.5"
+      "protobufjs": "7.5.5",
+      "uuid": "14.0.0"
     },
     "onlyBuiltDependencies": [
       "@lydell/node-pty",
