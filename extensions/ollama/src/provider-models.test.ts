@@ -205,11 +205,42 @@ describe("ollama provider models", () => {
       "tools",
     ]);
     expect(visionModel.input).toEqual(["text", "image"]);
+<<<<<<< HEAD
 
     const textModel = buildOllamaModelDefinition("glm-5.1:cloud", 202752, ["completion", "tools"]);
     expect(textModel.input).toEqual(["text"]);
 
     const noCapabilities = buildOllamaModelDefinition("unknown-model", 65536);
     expect(noCapabilities.input).toEqual(["text"]);
+=======
+    expect(visionModel.reasoning).toBe(true);
+    expect(visionModel.compat?.supportsTools).toBe(true);
+    expect(visionModel.compat?.supportsUsageInStreaming).toBe(true);
+
+    const textModel = buildOllamaModelDefinition("glm-5.1:cloud", 202752, ["completion", "tools"]);
+    expect(textModel.input).toEqual(["text"]);
+    expect(textModel.reasoning).toBe(false);
+    expect(textModel.compat?.supportsTools).toBe(true);
+    expect(textModel.compat?.supportsUsageInStreaming).toBe(true);
+
+    const noCapabilities = buildOllamaModelDefinition("unknown-model", 65536);
+    expect(noCapabilities.input).toEqual(["text"]);
+    expect(noCapabilities.compat?.supportsUsageInStreaming).toBe(true);
+  });
+
+  it("disables tool support when Ollama capabilities omit tools", () => {
+    const model = buildOllamaModelDefinition("embeddinggemma:latest", 2048, ["embedding"]);
+
+    expect(model.reasoning).toBe(false);
+    expect(model.compat?.supportsTools).toBe(false);
+    expect(model.compat?.supportsUsageInStreaming).toBe(true);
+  });
+
+  it("parses the last positive Modelfile num_ctx value", () => {
+    expect(parseOllamaNumCtxParameter("num_ctx 8192\nnum_ctx 32768")).toBe(32768);
+    expect(parseOllamaNumCtxParameter("temperature 0.8\nnum_ctx -1\nnum_ctx 0")).toBeUndefined();
+    expect(parseOllamaNumCtxParameter('stop "<|eot_id|>"')).toBeUndefined();
+    expect(parseOllamaNumCtxParameter({ num_ctx: 8192 })).toBeUndefined();
+>>>>>>> 930b443c9e (fix(ollama): preserve streaming usage compat)
   });
 });

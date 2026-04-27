@@ -1035,6 +1035,7 @@ Docs: https://docs.openclaw.ai
 - Sessions: remove trajectory runtime and pointer sidecars when session maintenance prunes, caps, or disk-evicts their owning session, while preserving sidecars still referenced by live rows. Fixes #73000. Thanks @jared-rebel.
 - Plugins/CLI: allow managed plugin installs when the active extensions root is a symlink to a real state directory, while keeping nested target symlinks blocked and suppressing misleading hook-pack fallback errors for install-boundary failures. Fixes #72946. Thanks @mayank6136.
 - Providers/Ollama: mark discovered Ollama catalog models as supporting streaming usage metadata so token accounting stays enabled for local models. (#72976) Thanks @sdeyang.
+<<<<<<< HEAD
 - Media understanding: reject malformed MIME values with trailing junk while preserving standard parameter tails before enrichment uses them. (#72914) Thanks @volcano303.
 - WebChat: keep bare `/new` and `/reset` prompts from producing empty transcript text by inserting the hidden session marker when the visible tail is blank. (#72863) Thanks @mahopan.
 - CLI/update: explain completion-cache refresh timeouts with manual refresh guidance instead of surfacing a raw low-level timeout. Fixes #72842. (#72850) Thanks @iot2edge.
@@ -1043,6 +1044,8 @@ Docs: https://docs.openclaw.ai
 - Agents/ACP: pass the resolved ACP agent directory into media understanding so per-agent media caches and config are used for ACP-dispatched image turns. (#72832) Thanks @luyao618.
 - Gateway/Bonjour: truncate mDNS service names and host labels to the 63-byte DNS label limit at valid UTF-8 boundaries. (#72809) Thanks @luyao618.
 - Feishu: treat groups explicitly configured under channels.feishu.groups as admitted even when groupAllowFrom is empty, while preserving groupPolicy: "disabled" as a hard group block and keeping groups.\* wildcard defaults non-admitting. Fixes #67687. (#72789) Thanks @MoerAI.
+=======
+>>>>>>> 930b443c9e (fix(ollama): preserve streaming usage compat)
 - Gateway/startup: keep hot Gateway boot paths on leaf config imports and add max-RSS reporting to the gateway startup bench so low-memory startup regressions are visible before release. Thanks @vincentkoc.
 - WebChat: read `chat.history` from active transcript branches, drop stale streamed assistant tails once final history catches up, and coalesce duplicate in-flight Control UI submits, so rewritten prompts, completed replies, and rapid send events no longer render or process twice. Fixes #72975, #72963, and #72974. Thanks @dmagdici, @lhtpluto, and @Benjamin5281999.
 - WebChat/TTS: persist automatic final-mode TTS audio as a supplemental audio-only transcript update instead of adding a second assistant message with the same visible text. Fixes #72830. Thanks @lhtpluto.

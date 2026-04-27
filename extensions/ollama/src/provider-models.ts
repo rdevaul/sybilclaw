@@ -218,6 +218,20 @@ export function buildOllamaModelDefinition(
 ): ModelDefinitionConfig {
   const hasVision = capabilities?.includes("vision") ?? false;
   const input: ("text" | "image")[] = hasVision ? ["text", "image"] : ["text"];
+<<<<<<< HEAD
+=======
+  const reasoning =
+    capabilities === undefined
+      ? isReasoningModelHeuristic(modelId)
+      : capabilities.includes("thinking");
+  const compat =
+    capabilities === undefined
+      ? { supportsUsageInStreaming: true }
+      : {
+          supportsTools: capabilities.includes("tools"),
+          supportsUsageInStreaming: true,
+        };
+>>>>>>> 930b443c9e (fix(ollama): preserve streaming usage compat)
   return {
     id: modelId,
     name: modelId,
@@ -226,6 +240,10 @@ export function buildOllamaModelDefinition(
     cost: OLLAMA_DEFAULT_COST,
     contextWindow: contextWindow ?? OLLAMA_DEFAULT_CONTEXT_WINDOW,
     maxTokens: OLLAMA_DEFAULT_MAX_TOKENS,
+<<<<<<< HEAD
+=======
+    compat,
+>>>>>>> 930b443c9e (fix(ollama): preserve streaming usage compat)
   };
 }
 
