@@ -218,6 +218,13 @@ export function buildOllamaModelDefinition(
 ): ModelDefinitionConfig {
   const hasVision = capabilities?.includes("vision") ?? false;
   const input: ("text" | "image")[] = hasVision ? ["text", "image"] : ["text"];
+  const compat =
+    capabilities === undefined
+      ? { supportsUsageInStreaming: true }
+      : {
+          supportsTools: capabilities.includes("tools"),
+          supportsUsageInStreaming: true,
+        };
   return {
     id: modelId,
     name: modelId,
@@ -226,6 +233,7 @@ export function buildOllamaModelDefinition(
     cost: OLLAMA_DEFAULT_COST,
     contextWindow: contextWindow ?? OLLAMA_DEFAULT_CONTEXT_WINDOW,
     maxTokens: OLLAMA_DEFAULT_MAX_TOKENS,
+    compat,
   };
 }
 
