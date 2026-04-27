@@ -31,7 +31,9 @@ const DEFAULT_REDACT_PATTERNS: string[] = [
   // JSON fields.
   String.raw`"(?:apiKey|token|secret|password|passwd|accessToken|refreshToken|${PAYMENT_CREDENTIAL_JSON_KEYS})"\s*:\s*"([^"]+)"`,
   // CLI flags.
-  String.raw`--(?:api[-_]?key|hook[-_]?token|token|secret|password|passwd|${PAYMENT_CREDENTIAL_QUERY_KEYS})\s+(["']?)([^\s"']+)\1`,
+  String.raw`--(?:api[-_]?key|hook[-_]?token|token|secret|password|passwd)\s+(["']?)([^\s"']+)\1`,
+  // URL query credentials.
+  String.raw`/([?&](?:api[-_]?key|apikey|access[-_]?token|auth[-_]?token|client[-_]?secret|hook[-_]?token|refresh[-_]?token|token|key|secret|password|pass|passwd|auth|signature)=)([^&#\s)"'<>]+)/giu`,
   // Authorization headers.
   String.raw`Authorization\s*[:=]\s*Bearer\s+([A-Za-z0-9._\-+=]+)`,
   String.raw`\bBearer\s+([A-Za-z0-9._\-+=]{18,})\b`,
