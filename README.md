@@ -150,13 +150,13 @@ Model note: while many providers and models are supported, prefer a current flag
 Runtime: **Node 24 (recommended) or Node 22.16+**.
 
 ```bash
-npm install -g openclaw@latest
-# or: pnpm add -g openclaw@latest
+npm install -g sybilclaw@latest
+# or: pnpm add -g sybilclaw@latest
 
-openclaw onboard --install-daemon
+sybilclaw onboard --install-daemon
 ```
 
-OpenClaw Onboard installs the Gateway daemon (launchd/systemd user service) so it stays running.
+SybilClaw Onboard installs the Gateway daemon (launchd/systemd user service) so it stays running.
 
 ## Quick start (TL;DR)
 
@@ -165,18 +165,18 @@ Runtime: **Node 24 (recommended) or Node 22.16+**.
 Full beginner guide (auth, pairing, channels): [Getting started](https://docs.openclaw.ai/start/getting-started)
 
 ```bash
-openclaw onboard --install-daemon
+sybilclaw onboard --install-daemon
 
-openclaw gateway --port 18789 --verbose
+sybilclaw gateway --port 18789 --verbose
 
 # Send a message
-openclaw message send --to +1234567890 --message "Hello from OpenClaw"
+sybilclaw message send --to +1234567890 --message "Hello from SybilClaw"
 
 # Talk to the assistant (optionally deliver back to any connected channel: WhatsApp/Telegram/Slack/Discord/Google Chat/Signal/iMessage/BlueBubbles/IRC/Microsoft Teams/Matrix/Feishu/LINE/Mattermost/Nextcloud Talk/Nostr/Synology Chat/Tlon/Twitch/Zalo/Zalo Personal/WeChat/QQ/WebChat)
-openclaw agent --message "Ship checklist" --thinking high
+sybilclaw agent --message "Ship checklist" --thinking high
 ```
 
-Upgrading? [Updating guide](https://docs.openclaw.ai/install/updating) (and run `openclaw doctor`).
+Upgrading? Just run `sybilclaw update` (or `npm update -g sybilclaw`), and run `sybilclaw doctor` to verify your setup.
 
 Models config + CLI: [Models](https://docs.openclaw.ai/concepts/models). Auth profile rotation + fallbacks: [Model failover](https://docs.openclaw.ai/concepts/model-failover).
 
