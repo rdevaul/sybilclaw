@@ -4,7 +4,7 @@ Telegraph style. Root rules only. Read scoped `AGENTS.md` before touching a subt
 
 ## Start
 
-- Repo: `https://github.com/openclaw/openclaw`
+- Repo: `https://github.com/rdevaul/sybilclaw`
 - Replies: repo-root file refs only, e.g. `extensions/telegram/src/index.ts:80`. No absolute paths, no `~/`.
 - CODEOWNERS: maintenance/refactors/tests are ok. For larger behavior, product, security, or ownership-sensitive changes, get a listed owner request/review first.
 - First pass: run docs list (`pnpm docs:list`; ignore if unavailable), then read only relevant docs/guides.
@@ -85,7 +85,7 @@ Scoped guides:
   - `pnpm lint:apps`: Swift/app surface, separate from TS lint
   - `pnpm lint:all`: legacy comparison lane
 - Local heavy-check behavior: `OPENCLAW_LOCAL_CHECK=1` default; `OPENCLAW_LOCAL_CHECK_MODE=throttled|full`; `OPENCLAW_LOCAL_CHECK=0` for CI/shared runs.
-- Local validation is local-first. Do not default to Blacksmith/Testbox for routine OpenClaw iteration; it burns warm caches and startup time. Use repo `pnpm` lanes first, then reach for remote CI/Testbox only for parity-only failures, secrets/services, or when explicitly requested.
+- Local validation is local-first. Do not default to Blacksmith/Testbox for routine SybilClaw iteration; it burns warm caches and startup time. Use repo `pnpm` lanes first, then reach for remote CI/Testbox only for parity-only failures, secrets/services, or when explicitly requested.
 
 ## Gates
 
@@ -118,7 +118,7 @@ Scoped guides:
 - Classes: no prototype mixins/mutations. Use explicit inheritance/composition. Tests prefer per-instance stubs.
 - Comments: brief only for non-obvious logic.
 - File size: split around ~700 LOC when it improves clarity/testability.
-- Product naming: **OpenClaw** product/docs; `openclaw` CLI/package/path/config.
+- Product naming: **SybilClaw** product/docs; `sybilclaw` CLI/package/path/config.
 - Written English: American spelling.
 
 ## Tests
@@ -164,7 +164,7 @@ Scoped guides:
 ## Security / Release
 
 - Never commit real phone numbers, videos, credentials, live config.
-- Secrets: channel/provider credentials under `~/.openclaw/credentials/`; model auth profiles under `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`.
+- Secrets: channel/provider credentials under `~/.sybilclaw/credentials/`; model auth profiles under `~/.sybilclaw/agents/<agentId>/agent/auth-profiles.json`.
 - Env keys: check `~/.profile`.
 - Dependency patches/overrides/vendor changes require explicit approval. `pnpm.patchedDependencies` must use exact versions.
 - Carbon pins owner-only: do not change `@buape/carbon` versions unless Shadow (`@thewilloftheshadow`, verified by `gh`) asks.
@@ -178,7 +178,7 @@ Scoped guides:
 - Before simulator/emulator testing, check connected real iOS/Android devices first.
 - "restart iOS/Android apps" = rebuild/reinstall/relaunch, not kill/launch.
 - SwiftUI: prefer Observation (`@Observable`, `@Bindable`) over new `ObservableObject`.
-- mac gateway: use app or `openclaw gateway restart/status --deep`; avoid ad-hoc tmux gateway sessions. Rebuild mac app locally, not over SSH.
+- mac gateway: use app or `sybilclaw gateway restart/status --deep`; avoid ad-hoc tmux gateway sessions. Rebuild mac app locally, not over SSH.
 - mac logs: `./scripts/clawlog.sh`.
 - Version bump touches: `package.json`, `apps/android/app/build.gradle.kts`, `apps/ios/version.json` then `pnpm ios:version:sync`, `apps/macos/.../Info.plist`, `docs/install/updating.md`. Appcast only for Sparkle release.
 - iOS Team ID: `security find-identity -p codesigning -v`; fallback `defaults read com.apple.dt.Xcode IDEProvisioningTeamIdentifiers`.
@@ -192,7 +192,7 @@ Scoped guides:
 
 ## Misc Footguns
 
-- Rebrand/migration/config warnings: run `openclaw doctor`.
+- Rebrand/migration/config warnings: run `sybilclaw doctor`.
 - Never edit `node_modules`.
 - Local-only `.agents` ignores: use `.git/info/exclude`, not repo `.gitignore`.
 - CLI progress: use `src/cli/progress.ts`; status tables: `src/terminal/table.ts`.

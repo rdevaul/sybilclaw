@@ -1,4 +1,5 @@
-**/node_modules/
 **/.runtime-deps-*/
 docs/.generated/
-dist/extensions/
+
+# Allow extension runtime dependencies through
+# (package.json files field includes: !dist/extensions/*/node_modules/**)
