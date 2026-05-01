@@ -171,6 +171,10 @@ Tool summaries can redact sensitive tokens before they hit the console:
 
 Redaction affects **console output only** and does not alter file logs.
 
+The built-in defaults cover common API credentials and payment-credential field
+names such as card number, CVC/CVV, shared payment token, and payment credential
+when they appear as JSON fields, URL parameters, CLI flags, or assignments.
+
 ## Diagnostics + OpenTelemetry
 
 Diagnostics are structured, machine-readable events for model runs **and**
