@@ -152,6 +152,28 @@ function getSlackBoltInterop(): SlackBoltResolvedExports {
 const SLACK_WEBHOOK_MAX_BODY_BYTES = 1024 * 1024;
 const SLACK_WEBHOOK_BODY_TIMEOUT_MS = 30_000;
 
+export function formatSlackSocketReconnectMessage(params: {
+  event: string;
+  attempt: number;
+  maxAttempts: number;
+  delayMs: number;
+  error?: unknown;
+}) {
+  const maxAttempts = params.maxAttempts > 0 ? String(params.maxAttempts) : "∞";
+  const suffix = params.error ? ` (${formatUnknownError(params.error)})` : "";
+  return `slack socket disconnected (${params.event}); reconnecting in ${Math.round(params.delayMs / 1000)}s (attempt ${params.attempt}/${maxAttempts})${suffix}`;
+}
+
+export function formatSlackSocketStartRetryMessage(params: {
+  attempt: number;
+  maxAttempts: number;
+  delayMs: number;
+  error: unknown;
+}) {
+  const maxAttempts = params.maxAttempts > 0 ? String(params.maxAttempts) : "∞";
+  return `slack socket mode failed to start; retry ${params.attempt}/${maxAttempts} in ${Math.round(params.delayMs / 1000)}s reason="${formatUnknownError(params.error)}"`;
+}
+
 function parseApiAppIdFromAppToken(raw?: string) {
   const token = raw?.trim();
   if (!token) {
@@ -726,7 +748,12 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
           }
           const delayMs = computeBackoff(SLACK_SOCKET_RECONNECT_POLICY, reconnectAttempts);
           runtime.error?.(
-            `slack socket mode failed to start. retry ${reconnectAttempts}/${SLACK_SOCKET_RECONNECT_POLICY.maxAttempts || "∞"} in ${Math.round(delayMs / 1000)}s (${formatUnknownError(err)})`,
+            formatSlackSocketStartRetryMessage({
+              attempt: reconnectAttempts,
+              maxAttempts: SLACK_SOCKET_RECONNECT_POLICY.maxAttempts,
+              delayMs,
+              error: err,
+            }),
           );
           try {
             await sleepWithAbort(delayMs, opts.abortSignal);
