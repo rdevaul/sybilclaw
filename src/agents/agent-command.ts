@@ -1197,11 +1197,7 @@ async function agentCommandInternal(
     }
 
     const transcriptPersistenceRunner = result.meta.executionTrace?.runner;
-    const embeddedAssistantGapFill =
-      transcriptPersistenceRunner === "embedded" ||
-      (transcriptPersistenceRunner === undefined &&
-        Boolean(result.meta.finalAssistantVisibleText?.trim()));
-    if (transcriptPersistenceRunner === "cli" || embeddedAssistantGapFill) {
+    if (transcriptPersistenceRunner === "cli" || transcriptPersistenceRunner === "embedded") {
       try {
         sessionEntry = await attemptExecutionRuntime.persistCliTurnTranscript({
           body,
@@ -1216,7 +1212,7 @@ async function agentCommandInternal(
           threadId: opts.threadId,
           sessionCwd: workspaceDir,
           config: cfg,
-          embeddedAssistantGapFill,
+          embeddedAssistantGapFill: transcriptPersistenceRunner === "embedded",
         });
         sessionEntry = await (
           await loadCliCompactionRuntime()
