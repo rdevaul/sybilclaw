@@ -1169,7 +1169,52 @@ export async function runEmbeddedAttempt(
       queueYieldInterruptForSession = () => {
         queueSessionsYieldInterruptMessage(activeSession);
       };
-      if (params.contextEngine?.info?.ownsCompaction !== true) {
+      // Resolve compaction ownership per-attempt. Engines may override the
+      // static `info.ownsCompaction` on a per-session basis (e.g. contextgraph
+      // toggles based on a per-user `/graph on` flag). Falls back to the
+      // static info value when the override is not provided, preserving
+      // backward compatibility with engines that don't implement it.
+      let attemptOwnsCompaction = params.contextEngine?.info?.ownsCompaction === true;
+      if (params.contextEngine?.ownsCompactionForSession) {
+        try {
+          // The interface allows boolean | Promise<boolean>. Await covers both.
+          // Coerce explicitly with === true so a non-boolean truthy value (e.g. 1)
+          // is still a definite false; the engine contract requires a boolean.
+          const result = await params.contextEngine.ownsCompactionForSession({
+            sessionId: params.sessionId,
+            sessionKey: params.sessionKey,
+          });
+          attemptOwnsCompaction = result;
+        } catch (err) {
+          // Engine threw — fall back to static info; never let the engine
+          // crash the attempt over a flag check.
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[context-engine] ownsCompactionForSession failed; falling back to info.ownsCompaction (engineId=${params.contextEngine?.info?.id ?? "n/a"}): ${String(err)}`,
+          );
+        }
+      }
+
+      // [PANE-DIAG] (2026-05-01) Log which loop-hook branch we take per attempt
+      // so we can confirm at runtime whether dashboard: sessions reach the
+      // contextgraph install path or fall through to the dumb tool-result guard.
+      try {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[PANE-DIAG] attempt sessionKey=${params.sessionKey ?? "n/a"}` +
+            ` ce=${!!params.contextEngine}` +
+            ` ownsCompaction=${attemptOwnsCompaction}` +
+            ` ownsCompactionStatic=${params.contextEngine?.info?.ownsCompaction}` +
+            ` engineId=${params.contextEngine?.info?.id ?? "n/a"}` +
+            ` branch=${attemptOwnsCompaction ? "loop-hook" : "tool-result-guard"}`,
+        );
+      } catch (err) {
+        // Diagnostic logging must never break the run, but log the error at
+        // debug-level rather than swallowing it silently.
+        // eslint-disable-next-line no-console
+        console.debug(`[PANE-DIAG] log emit failed: ${String(err)}`);
+      }
+      if (!attemptOwnsCompaction) {
         removeToolResultContextGuard = installToolResultContextGuard({
           agent: activeSession.agent,
           contextWindowTokens: Math.max(
@@ -1179,7 +1224,10 @@ export async function runEmbeddedAttempt(
             ),
           ),
         });
-      } else {
+      } else if (params.contextEngine) {
+        // attemptOwnsCompaction can only be true when contextEngine is set
+        // (see resolution above), but TypeScript can't see through the
+        // boolean variable to narrow the type — add an explicit guard.
         removeToolResultContextGuard = installContextEngineLoopHook({
           agent: activeSession.agent,
           contextEngine: params.contextEngine,
@@ -2110,29 +2158,31 @@ export async function runEmbeddedAttempt(
 
           const reserveTokens = settingsManager.getCompactionReserveTokens();
           const contextTokenBudget = params.contextTokenBudget ?? DEFAULT_CONTEXT_TOKENS;
-          const preemptiveCompaction =
-            params.contextEngine?.info?.ownsCompaction === true
-              ? {
-                  route: "fits" as const,
-                  shouldCompact: false,
-                  estimatedPromptTokens: 0,
-                  promptBudgetBeforeReserve: 0,
-                  overflowTokens: 0,
-                  toolResultReducibleChars: 0,
-                  effectiveReserveTokens: reserveTokens,
-                }
-              : shouldPreemptivelyCompactBeforePrompt({
-                  messages: activeSession.messages,
-                  systemPrompt: systemPromptText,
-                  prompt: effectivePrompt,
-                  contextTokenBudget,
-                  reserveTokens,
-                  toolResultMaxChars: resolveLiveToolResultMaxChars({
-                    contextWindowTokens: contextTokenBudget,
-                    cfg: params.config,
-                    agentId: sessionAgentId,
-                  }),
-                });
+          // Use the attempt-scoped compaction-ownership decision computed earlier
+          // (see ~line 1175). Honors per-session overrides via
+          // ContextEngine.ownsCompactionForSession when present.
+          const preemptiveCompaction = attemptOwnsCompaction
+            ? {
+                route: "fits" as const,
+                shouldCompact: false,
+                estimatedPromptTokens: 0,
+                promptBudgetBeforeReserve: 0,
+                overflowTokens: 0,
+                toolResultReducibleChars: 0,
+                effectiveReserveTokens: reserveTokens,
+              }
+            : shouldPreemptivelyCompactBeforePrompt({
+                messages: activeSession.messages,
+                systemPrompt: systemPromptText,
+                prompt: effectivePrompt,
+                contextTokenBudget,
+                reserveTokens,
+                toolResultMaxChars: resolveLiveToolResultMaxChars({
+                  contextWindowTokens: contextTokenBudget,
+                  cfg: params.config,
+                  agentId: sessionAgentId,
+                }),
+              });
           if (preemptiveCompaction.route === "truncate_tool_results_only") {
             const toolResultMaxChars = resolveLiveToolResultMaxChars({
               contextWindowTokens: contextTokenBudget,
