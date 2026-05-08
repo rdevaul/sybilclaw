@@ -20,20 +20,23 @@ describe("TelegramPollingLivenessTracker", () => {
     );
   });
 
-  it("does not detect a polling stall while a recent non-polling API call is in flight", () => {
+  it("detects a polling stall while a recent non-polling API call is in flight", () => {
     let now = 0;
     const tracker = new TelegramPollingLivenessTracker({ now: () => now });
+
+    tracker.noteGetUpdatesStarted({ offset: 9 });
 
     now = 60_000;
     const callId = tracker.noteApiCallStarted();
 
     now = 120_001;
-    expect(
-      tracker.detectStall({
-        thresholdMs: POLL_STALL_THRESHOLD_MS,
-        runnerIsRunning: true,
-      }),
-    ).toBeNull();
+    const stall = tracker.detectStall({
+      thresholdMs: POLL_STALL_THRESHOLD_MS,
+    });
+    expect(stall?.message).toContain("active getUpdates stuck");
+    expect(stall?.message).toContain("inFlight=1 outcome=started startedAt=0");
+    expect(stall?.message).toContain("offset=9");
+    expect(stall?.message).toContain("apiElapsedMs=60001");
 
     tracker.noteApiCallFinished(callId);
   });
@@ -45,7 +48,6 @@ describe("TelegramPollingLivenessTracker", () => {
     now = 120_001;
     const stall = tracker.detectStall({
       thresholdMs: POLL_STALL_THRESHOLD_MS,
-      runnerIsRunning: true,
     });
     expect(stall?.message).toContain("Polling stall detected (no completed getUpdates");
     expect(stall?.message).toContain("inFlight=0 outcome=not-started");
@@ -54,7 +56,6 @@ describe("TelegramPollingLivenessTracker", () => {
     expect(
       tracker.detectStall({
         thresholdMs: POLL_STALL_THRESHOLD_MS,
-        runnerIsRunning: true,
       }),
     ).toBeNull();
   });
@@ -69,7 +70,6 @@ describe("TelegramPollingLivenessTracker", () => {
     now = 120_001;
     const stall = tracker.detectStall({
       thresholdMs: POLL_STALL_THRESHOLD_MS,
-      runnerIsRunning: true,
     });
 
     expect(stall?.message).toContain("active getUpdates stuck");
