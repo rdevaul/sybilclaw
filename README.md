@@ -1,12 +1,9 @@
-# 🦞 SybilClaw — Robust Multi-User AI with Advanced Memory Management
+# 🦞 SybilClaw — Stable, Multi-User AI with Advanced Memory Management
 
-_A fork of [OpenClaw](https://github.com/openclaw/openclaw) built for households, research teams, and small organizations that need one AI personality serving multiple people — each with their own memory, context, and history._
+_A security-first fork of [OpenClaw](https://github.com/openclaw/openclaw) for households, research teams, and small organizations. We don't YOLO upstream changes — every merge is screened for security and stability._
 
 <p align="center">
-    <picture>
-        <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/openclaw/openclaw/main/docs/assets/openclaw-logo-text-dark.svg">
-        <img src="https://raw.githubusercontent.com/openclaw/openclaw/main/docs/assets/openclaw-logo-text.svg" alt="OpenClaw" width="500">
-    </picture>
+    <img src="docs/assets/sybilclaw-logo.png" alt="SybilClaw" width="200">
 </p>
 
 <p align="center">
@@ -23,7 +20,13 @@ It answers you on the channels you already use. It can speak and listen on macOS
 
 **OpenClaw** is a self-hosted AI assistant that runs on your own devices and connects to the messaging channels you already use (Telegram, WhatsApp, Discord, Signal, iMessage, Slack, and [many more](#channels)). It can speak, listen, render a live Canvas, and control a browser — all from a single local gateway.
 
-**SybilClaw** extends OpenClaw with two core capabilities that OpenClaw doesn't support out of the box:
+**SybilClaw** extends OpenClaw with two core capabilities that OpenClaw doesn't support out of the box. We also follow a **conservative merge policy**: security patches and critical stability fixes are cherry-picked promptly; feature merges happen only against vetted upstream LTS releases. We'd rather be a week late than deploy a broken system.
+
+**Why SybilClaw over OpenClaw?**
+
+- **Security screen:** every upstream change is classified before it lands — security/stability first, features later
+- **Targeted merges only:** no blind main-branch pulls; we wait for upstream LTS branches
+- **Proven config:** the same multi-user + memory architecture you trust, hardened by daily upstream monitoring
 
 ### 1. True Multi-User Support
 
@@ -83,6 +86,19 @@ New install? Start here: [Getting started](https://docs.openclaw.ai/start/gettin
 Preferred setup: run `sybilclaw onboard` in your terminal.
 SybilClaw Onboard guides you step by step through setting up the gateway, workspace, channels, and skills. It is the recommended CLI setup path and works on **macOS, Linux, and Windows (via WSL2; strongly recommended)**.
 Works with npm, pnpm, or bun.
+
+## Stability & Security
+
+SybilClaw follows a conservative merge strategy:
+
+| Policy                   | Detail                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| **Tier 1 (ASAP)**        | Security patches, crash fixes, CVEs — cherry-picked within 24 hours          |
+| **Tier 2 (Maintenance)** | Stability, performance, bug fixes — merged in planned maintenance windows    |
+| **Tier 3 (Track)**       | Features, experiments — logged and tracked, merged only against LTS releases |
+| **LTS target**           | Full merges only against upstream LTS branches — never chasing HEAD          |
+
+Daily upstream monitoring runs automatically and produces a prioritized report. See [docs/sybilclaw/stability-policy.md](docs/sybilclaw/stability-policy.md) for details.
 
 ## Sponsors
 
@@ -292,6 +308,19 @@ pnpm ui:build
 
 Note: `pnpm sybilclaw ...` runs TypeScript directly (via `tsx`). `pnpm build` produces `dist/` for running via Node / the packaged `sybilclaw` binary, while `pnpm gateway:watch` rebuilds the runtime on demand during the dev loop.
 
+## Stability channels
+
+SybilClaw inherits OpenClaw's release channels but applies its own screening:
+
+- **stable**: tagged releases that have passed SybilClaw's security review
+- **beta**: prerelease tags for testing — not recommended for production
+- **dev**: moving head — **not supported by SybilClaw**; use OpenClaw upstream directly for bleeding-edge features
+
+Switch channels: `sybilclaw update --channel stable|beta`
+Details: [Development channels](https://docs.openclaw.ai/install/development-channels).
+
+> **Note:** SybilClaw deliberately does not track upstream `main`. If you want the latest experimental features, use OpenClaw directly. SybilClaw is for people who value stability.
+
 ## Development channels
 
 - **stable**: tagged releases (`vYYYY.M.D` or `vYYYY.M.D-<patch>`), npm dist-tag `latest`.
@@ -325,10 +354,12 @@ Minimal `~/.sybilclaw/sybilclaw.json` (model + defaults):
 
 [![Star History Chart](https://api.star-history.com/svg?repos=openclaw/openclaw&type=date&legend=top-left)](https://www.star-history.com/#openclaw/openclaw&type=date&legend=top-left)
 
-## Molty
+## Molty & Heritage
 
 OpenClaw was built for **Molty**, a space lobster AI assistant. 🦞
 by Peter Steinberger and the community.
+
+SybilClaw inherits this heritage but carries its own identity — named for Sybil, the oracle who saw the future clearly. We see stability coming, and we don't ship until it arrives.
 
 - [openclaw.ai](https://openclaw.ai)
 - [soul.md](https://soul.md)
