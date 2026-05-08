@@ -1,6 +1,7 @@
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolveGatewayStateDir } from "./paths.js";
 import {
   buildMinimalServicePath,
@@ -170,6 +171,270 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
     // Windows returns empty array (uses existing PATH)
     expect(result).toEqual([]);
   });
+<<<<<<< HEAD
+=======
+
+  it("omits hard-coded version-manager fallbacks on Linux when missing", () => {
+    const result = getMinimalServicePathParts({
+      platform: "linux",
+      home: "/home/testuser",
+      existsSync: noneExist,
+    });
+
+    expect(result).toContain("/home/testuser/.local/bin");
+    expect(result).toContain("/home/testuser/.npm-global/bin");
+    expect(result).toContain("/home/testuser/bin");
+    expect(result).toContain("/home/testuser/.nix-profile/bin");
+    expect(result).not.toContain("/home/testuser/.volta/bin");
+    expect(result).not.toContain("/home/testuser/.asdf/shims");
+    expect(result).not.toContain("/home/testuser/.bun/bin");
+    expect(result).not.toContain("/home/testuser/.nvm/current/bin");
+    expect(result).not.toContain("/home/testuser/.local/share/fnm/aliases/default/bin");
+    expect(result).not.toContain("/home/testuser/.local/share/fnm/current/bin");
+    expect(result).not.toContain("/home/testuser/.fnm/aliases/default/bin");
+    expect(result).not.toContain("/home/testuser/.fnm/current/bin");
+    expect(result).not.toContain("/home/testuser/.local/share/pnpm");
+  });
+
+  it("omits hard-coded version-manager fallbacks on macOS when missing", () => {
+    const result = getMinimalServicePathParts({
+      platform: "darwin",
+      home: "/Users/testuser",
+      existsSync: noneExist,
+    });
+
+    expect(result).toContain("/Users/testuser/.local/bin");
+    expect(result).toContain("/Users/testuser/.npm-global/bin");
+    expect(result).toContain("/Users/testuser/bin");
+    expect(result).toContain("/Users/testuser/.nix-profile/bin");
+    expect(result).not.toContain("/Users/testuser/.volta/bin");
+    expect(result).not.toContain("/Users/testuser/.asdf/shims");
+    expect(result).not.toContain("/Users/testuser/.bun/bin");
+    expect(result).not.toContain(
+      "/Users/testuser/Library/Application Support/fnm/aliases/default/bin",
+    );
+    expect(result).not.toContain("/Users/testuser/.fnm/aliases/default/bin");
+    expect(result).not.toContain("/Users/testuser/Library/pnpm");
+    expect(result).not.toContain("/Users/testuser/.local/share/pnpm");
+  });
+
+  it("keeps env-configured roots when fallback directories are missing", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "linux",
+      env: {
+        HOME: "/home/testuser",
+        PNPM_HOME: "/opt/pnpm",
+        VOLTA_HOME: "/opt/volta",
+        BUN_INSTALL: "/opt/bun",
+        ASDF_DATA_DIR: "/opt/asdf",
+        NVM_DIR: "/opt/nvm",
+        FNM_DIR: "/opt/fnm",
+      },
+      existsSync: noneExist,
+    });
+
+    expect(result).toContain("/opt/pnpm");
+    expect(result).toContain("/opt/volta/bin");
+    expect(result).toContain("/opt/bun/bin");
+    expect(result).toContain("/opt/asdf/shims");
+    expect(result).toContain("/opt/nvm/current/bin");
+    expect(result).toContain("/opt/fnm/aliases/default/bin");
+    expect(result).toContain("/opt/fnm/current/bin");
+  });
+
+  it("excludes env-configured bin roots derived from the install workspace", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "linux",
+      cwd: "/home/testuser/workspace",
+      env: {
+        HOME: "/home/testuser",
+        PNPM_HOME: "/home/testuser/workspace/evil-pnpm-home",
+        NPM_CONFIG_PREFIX: "/proc/thread-self/cwd/evil-npm-prefix",
+        BUN_INSTALL: "/proc/12345/cwd/evil-bun",
+        VOLTA_HOME: "/opt/volta",
+        ASDF_DATA_DIR: "relative-asdf",
+        NIX_PROFILES: "/nix/var/nix/profiles/default /home/testuser/workspace/evil-nix-profile",
+      },
+      existsSync: noneExist,
+    });
+
+    expect(result).not.toContain("/home/testuser/workspace/evil-pnpm-home");
+    expect(result).not.toContain("/proc/thread-self/cwd/evil-npm-prefix/bin");
+    expect(result).not.toContain("/proc/12345/cwd/evil-bun/bin");
+    expect(result).not.toContain("relative-asdf/shims");
+    expect(result).not.toContain("/home/testuser/workspace/evil-nix-profile/bin");
+    expect(result).toContain("/opt/volta/bin");
+    expect(result).toContain("/nix/var/nix/profiles/default/bin");
+  });
+
+  it("excludes env-configured bin roots whose existing parent resolves into the workspace", () => {
+    const realpathNative = vi.spyOn(fs.realpathSync, "native").mockImplementation((candidate) => {
+      const value = String(candidate);
+      if (value === "/tmp/workspace-link") {
+        return "/home/testuser/workspace";
+      }
+      if (value === "/home/testuser/workspace" || value === "/home/testuser") {
+        return value;
+      }
+      throw Object.assign(new Error("missing"), { code: "ENOENT" });
+    });
+
+    try {
+      const result = getMinimalServicePathPartsFromEnv({
+        platform: "linux",
+        cwd: "/home/testuser/workspace",
+        env: {
+          HOME: "/home/testuser",
+          PNPM_HOME: "/tmp/workspace-link/missing-pnpm-home",
+          VOLTA_HOME: "/opt/volta",
+        },
+        existsSync: noneExist,
+      });
+
+      expect(result).not.toContain("/tmp/workspace-link/missing-pnpm-home");
+      expect(result).toContain("/opt/volta/bin");
+    } finally {
+      realpathNative.mockRestore();
+    }
+  });
+
+  it("keeps env-configured user toolchain roots when the install cwd is HOME", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "linux",
+      cwd: "/home/testuser",
+      env: {
+        HOME: "/home/testuser",
+        PNPM_HOME: "/home/testuser/.local/share/pnpm",
+        FNM_DIR: "/home/testuser/.local/share/fnm",
+      },
+      existsSync: noneExist,
+    });
+
+    expect(result).toContain("/home/testuser/.local/share/pnpm");
+    expect(result).toContain("/home/testuser/.local/share/fnm/aliases/default/bin");
+    expect(result).toContain("/home/testuser/.local/share/fnm/current/bin");
+  });
+
+  it("emits only existing hard-coded version-manager fallbacks", () => {
+    const exists = (candidate: string) =>
+      candidate === "/home/testuser/.volta/bin" ||
+      candidate === "/home/testuser/.local/share/fnm/aliases/default/bin";
+    const result = getMinimalServicePathParts({
+      platform: "linux",
+      home: "/home/testuser",
+      existsSync: exists,
+    });
+
+    expect(result).toContain("/home/testuser/.volta/bin");
+    expect(result).toContain("/home/testuser/.local/share/fnm/aliases/default/bin");
+    expect(result).not.toContain("/home/testuser/.bun/bin");
+    expect(result).not.toContain("/home/testuser/.asdf/shims");
+    expect(result).not.toContain("/home/testuser/.fnm/aliases/default/bin");
+  });
+});
+
+describe("getMinimalServicePathParts - Nix Home Manager", () => {
+  it("falls back to default Nix profile when NIX_PROFILES is absent on Linux", () => {
+    const result = getMinimalServicePathParts({
+      platform: "linux",
+      home: "/home/testuser",
+      existsSync: () => true,
+    });
+
+    expect(result).toContain("/home/testuser/.nix-profile/bin");
+  });
+
+  it("falls back to default Nix profile when NIX_PROFILES is absent on macOS", () => {
+    const result = getMinimalServicePathParts({
+      platform: "darwin",
+      home: "/Users/testuser",
+      existsSync: () => true,
+    });
+
+    expect(result).toContain("/Users/testuser/.nix-profile/bin");
+  });
+
+  it("places rightmost NIX_PROFILES entry before leftmost on Linux", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "linux",
+      env: {
+        HOME: "/home/testuser",
+        NIX_PROFILES: "/nix/var/nix/profiles/default /home/testuser/.nix-profile",
+      },
+      existsSync: () => true,
+    });
+
+    const userIdx = result.indexOf("/home/testuser/.nix-profile/bin");
+    const defaultIdx = result.indexOf("/nix/var/nix/profiles/default/bin");
+    expect(userIdx).toBeGreaterThan(-1);
+    expect(defaultIdx).toBeGreaterThan(-1);
+    expect(userIdx).toBeLessThan(defaultIdx);
+  });
+
+  it("places rightmost NIX_PROFILES entry before leftmost on macOS", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "darwin",
+      env: {
+        HOME: "/Users/testuser",
+        NIX_PROFILES: "/nix/var/nix/profiles/default /Users/testuser/.nix-profile",
+      },
+      existsSync: () => true,
+    });
+
+    const userIdx = result.indexOf("/Users/testuser/.nix-profile/bin");
+    const defaultIdx = result.indexOf("/nix/var/nix/profiles/default/bin");
+    expect(userIdx).toBeGreaterThan(-1);
+    expect(defaultIdx).toBeGreaterThan(-1);
+    expect(userIdx).toBeLessThan(defaultIdx);
+  });
+
+  it("includes single Nix profile from NIX_PROFILES on Linux", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "linux",
+      env: {
+        HOME: "/home/testuser",
+        NIX_PROFILES: "/nix/var/nix/profiles/per-user/testuser/profile",
+      },
+      existsSync: () => true,
+    });
+
+    expect(result).toContain("/nix/var/nix/profiles/per-user/testuser/profile/bin");
+  });
+
+  it("includes single Nix profile from NIX_PROFILES on macOS", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "darwin",
+      env: {
+        HOME: "/Users/testuser",
+        NIX_PROFILES: "/nix/var/nix/profiles/per-user/testuser/profile",
+      },
+      existsSync: () => true,
+    });
+
+    expect(result).toContain("/nix/var/nix/profiles/per-user/testuser/profile/bin");
+  });
+
+  it("preserves Nix precedence across three profiles", () => {
+    const result = getMinimalServicePathPartsFromEnv({
+      platform: "linux",
+      env: {
+        HOME: "/home/testuser",
+        NIX_PROFILES:
+          "/nix/var/nix/profiles/default /nix/var/nix/profiles/per-user/testuser/custom /home/testuser/.nix-profile",
+      },
+      existsSync: () => true,
+    });
+
+    const userIdx = result.indexOf("/home/testuser/.nix-profile/bin");
+    const customIdx = result.indexOf("/nix/var/nix/profiles/per-user/testuser/custom/bin");
+    const defaultIdx = result.indexOf("/nix/var/nix/profiles/default/bin");
+    expect(userIdx).toBeGreaterThan(-1);
+    expect(customIdx).toBeGreaterThan(-1);
+    expect(defaultIdx).toBeGreaterThan(-1);
+    expect(userIdx).toBeLessThan(customIdx);
+    expect(customIdx).toBeLessThan(defaultIdx);
+  });
+>>>>>>> 230f7122dd (fix(security): prevent workspace PATH injection via service env and trash helpers (#73264))
 });
 
 describe("buildMinimalServicePath", () => {

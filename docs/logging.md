@@ -171,7 +171,17 @@ Tool summaries can redact sensitive tokens before they hit the console:
 
 Redaction affects **console output only** and does not alter file logs.
 
-## Diagnostics + OpenTelemetry
+The built-in defaults cover common API credentials and payment-credential field
+names such as card number, CVC/CVV, shared payment token, and payment credential
+when they appear as JSON fields, URL parameters, CLI flags, or assignments.
+
+`logging.redactSensitive: "off"` only disables this general log/transcript
+policy. OpenClaw still redacts safety-boundary payloads that can be shown to UI
+clients, support bundles, diagnostics observers, approval prompts, or agent
+tools. Examples include Control UI tool-call events, `sessions_history` output,
+diagnostics support exports, provider error observations, exec approval command
+display, and Gateway WebSocket protocol logs. Custom `logging.redactPatterns`
+can still add project-specific patterns on those surfaces.
 
 Diagnostics are structured, machine-readable events for model runs **and**
 message-flow telemetry (webhooks, queueing, session state). They do **not**

@@ -956,6 +956,63 @@ describe("trusted-proxy auth", () => {
       expect(res.reason).toBe("trusted_proxy_loopback_source");
     });
 
+    it("rejects local-direct password credentials when trusted-proxy auth fails", async () => {
+      const limiter = createLimiterSpy();
+      const res = await authorizeLocalDirect({
+        password: "local-password", // pragma: allowlist secret
+        connectPassword: "local-password", // pragma: allowlist secret
+        rateLimiter: limiter,
+      });
+
+      expect(res).toEqual({ ok: false, reason: "trusted_proxy_loopback_source" });
+      expect(limiter.check).not.toHaveBeenCalled();
+      expect(limiter.reset).not.toHaveBeenCalled();
+      expect(limiter.recordFailure).not.toHaveBeenCalled();
+    });
+
+    it("ignores wrong local-direct password credentials when trusted-proxy auth fails", async () => {
+      const limiter = createLimiterSpy();
+      const res = await authorizeLocalDirect({
+        password: "local-password", // pragma: allowlist secret
+        connectPassword: "wrong-password", // pragma: allowlist secret
+        rateLimiter: limiter,
+      });
+
+      expect(res).toEqual({ ok: false, reason: "trusted_proxy_loopback_source" });
+      expect(limiter.check).not.toHaveBeenCalled();
+      expect(limiter.recordFailure).not.toHaveBeenCalled();
+      expect(limiter.reset).not.toHaveBeenCalled();
+    });
+
+    it("does not apply shared-secret rate limits to trusted-proxy failures", async () => {
+      const limiter = createLimiterSpy();
+      limiter.check.mockReturnValueOnce({
+        allowed: false,
+        remaining: 0,
+        retryAfterMs: 2500,
+      });
+
+      const res = await authorizeLocalDirect({
+        password: "local-password", // pragma: allowlist secret
+        connectPassword: "local-password", // pragma: allowlist secret
+        rateLimiter: limiter,
+      });
+
+      expect(res).toEqual({ ok: false, reason: "trusted_proxy_loopback_source" });
+      expect(limiter.check).not.toHaveBeenCalled();
+      expect(limiter.recordFailure).not.toHaveBeenCalled();
+      expect(limiter.reset).not.toHaveBeenCalled();
+    });
+
+    it("keeps local-direct trusted-proxy on proxy failure when no password is supplied", async () => {
+      const res = await authorizeLocalDirect({
+        password: "local-password", // pragma: allowlist secret
+      });
+
+      expect(res.ok).toBe(false);
+      expect(res.reason).toBe("trusted_proxy_loopback_source");
+    });
+
     it("rejects trusted-proxy identity headers from loopback sources", async () => {
       const res = await authorizeGatewayConnect({
         auth: {

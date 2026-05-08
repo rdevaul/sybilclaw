@@ -21,6 +21,10 @@ import { filterContainerGenericHints } from "./shared.js";
 
 type DaemonLifecycleOptions = {
   json?: boolean;
+  force?: boolean;
+  wait?: string;
+  restartIntent?: GatewayRestartIntent;
+  disable?: boolean;
 };
 
 type RestartPostCheckContext = {
@@ -279,6 +283,7 @@ export async function runServiceStop(params: {
   service: GatewayService;
   opts?: DaemonLifecycleOptions;
   onNotLoaded?: (ctx: ServiceRecoveryContext) => Promise<ServiceRecoveryResult | null>;
+  stopWhenNotLoaded?: boolean;
 }) {
   const json = Boolean(params.opts?.json);
   const { stdout, emit, fail } = createDaemonActionContext({ action: "stop", json });
@@ -292,6 +297,20 @@ export async function runServiceStop(params: {
     return;
   }
   if (!loaded) {
+    if (params.stopWhenNotLoaded) {
+      try {
+        await params.service.stop({ env: process.env, stdout, disable: params.opts?.disable });
+      } catch (err) {
+        fail(`${params.serviceNoun} stop failed: ${String(err)}`);
+        return;
+      }
+      emit({
+        ok: true,
+        result: "stopped",
+        service: buildDaemonServiceSnapshot(params.service, false),
+      });
+      return;
+    }
     try {
       const handled = await params.onNotLoaded?.({ json, stdout, fail });
       if (handled) {
@@ -323,7 +342,7 @@ export async function runServiceStop(params: {
     return;
   }
   try {
-    await params.service.stop({ env: process.env, stdout });
+    await params.service.stop({ env: process.env, stdout, disable: params.opts?.disable });
   } catch (err) {
     fail(`${params.serviceNoun} stop failed: ${String(err)}`);
     return;

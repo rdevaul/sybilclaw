@@ -59,7 +59,7 @@ console stream. This is **tools-only** and does not alter file logs.
 - `logging.redactPatterns`: array of regex strings (overrides defaults)
   - Use raw regex strings (auto `gi`), or `/pattern/flags` if you need custom flags.
   - Matches are masked by keeping the first 6 + last 4 chars (length >= 18), otherwise `***`.
-  - Defaults cover common key assignments, CLI flags, JSON fields, bearer headers, PEM blocks, and popular token prefixes.
+  - Defaults cover common key assignments, CLI flags, JSON fields, bearer headers, PEM blocks, popular token prefixes, and payment credential field names such as card number, CVC/CVV, shared payment token, and payment credential.
 
 ## Gateway WebSocket logs
 
