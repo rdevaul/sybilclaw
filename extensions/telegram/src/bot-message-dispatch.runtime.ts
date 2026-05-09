@@ -1,5 +1,6 @@
 export {
   loadSessionStore,
+  resolveAndPersistSessionFile,
   resolveMarkdownTableMode,
   resolveSessionStoreEntry,
   resolveStorePath,
