@@ -45,7 +45,12 @@ export function tryHandleRootVersionFastPath(
   resolveVersion()
     .then(({ VERSION, resolveCommitHash }) => {
       const commit = resolveCommitHash({ moduleUrl: deps.moduleUrl ?? import.meta.url });
-      output(commit ? `OpenClaw ${VERSION} (${commit})` : `OpenClaw ${VERSION}`);
+      const primary = commit ? `SybilClaw ${VERSION} (${commit})` : `SybilClaw ${VERSION}`;
+      // Print fork lineage on a second line so scripts that grep the
+      // legacy upstream name ("OpenClaw") still match `<binary> --version`
+      // output. Standard parsers that take the first line / first two
+      // whitespace-separated tokens still see `SybilClaw <version>`.
+      output(`${primary}\nbased on OpenClaw ${VERSION}`);
       exit(0);
     })
     .catch(onError);
