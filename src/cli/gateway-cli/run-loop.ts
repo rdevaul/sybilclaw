@@ -226,6 +226,7 @@ export async function runGatewayLoop(params: {
         );
         return;
       }
+      markGatewaySigusr1RestartHandled();
       if (shuttingDown) {
         gatewayLog.info("received SIGUSR1 during shutdown; ignoring");
         return;
