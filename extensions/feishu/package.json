@@ -10,13 +10,13 @@
   },
   "devDependencies": {
     "@openclaw/plugin-sdk": "workspace:*",
-    "openclaw": "workspace:*"
+    "sybilclaw": "workspace:*"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.4.20"
+    "sybilclaw": ">=2026.4.20"
   },
   "peerDependenciesMeta": {
-    "openclaw": {
+    "sybilclaw": {
       "optional": true
     }
   },
@@ -28,10 +28,10 @@
     "channel": {
       "id": "feishu",
       "label": "Feishu",
-      "selectionLabel": "Feishu/Lark (飞书)",
+      "selectionLabel": "Feishu/Lark (\u98de\u4e66)",
       "docsPath": "/channels/feishu",
       "docsLabel": "feishu",
-      "blurb": "飞书/Lark enterprise messaging with doc/wiki/drive tools.",
+      "blurb": "\u98de\u4e66/Lark enterprise messaging with doc/wiki/drive tools.",
       "aliases": [
         "lark"
       ],

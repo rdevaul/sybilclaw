@@ -14,13 +14,13 @@
   "devDependencies": {
     "@openclaw/plugin-sdk": "workspace:*",
     "@types/ws": "^8.18.1",
-    "openclaw": "workspace:*"
+    "sybilclaw": "workspace:*"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.4.20"
+    "sybilclaw": ">=2026.4.20"
   },
   "peerDependenciesMeta": {
-    "openclaw": {
+    "sybilclaw": {
       "optional": true
     }
   },
