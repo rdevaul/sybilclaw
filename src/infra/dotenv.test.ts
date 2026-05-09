@@ -366,6 +366,23 @@ describe("loadDotEnv", () => {
     });
   });
 
+  it.each(["npm_execpath", "NPM_EXECPATH"])("blocks %s from workspace .env", async (key) => {
+    // Backport of upstream OpenClaw security fix #73262: a workspace-local
+    // .env that sets npm_execpath could otherwise redirect bundled-runtime
+    // dep installs to an attacker-controlled script.
+    await withIsolatedEnvAndCwd(async () => {
+      await withDotEnvFixture(async ({ cwdDir }) => {
+        await writeEnvFile(path.join(cwdDir, ".env"), `${key}=./evil/npm-cli.js\n`);
+
+        delete process.env[key];
+
+        loadWorkspaceDotEnvFile(path.join(cwdDir, ".env"), { quiet: true });
+
+        expect(process.env[key]).toBeUndefined();
+      });
+    });
+  });
+
   it("still allows trusted global .env to set non-workspace runtime vars", async () => {
     await withIsolatedEnvAndCwd(async () => {
       await withDotEnvFixture(async ({ cwdDir, stateDir }) => {
