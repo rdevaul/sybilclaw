@@ -2,6 +2,26 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.5.10 — 2026-05-09
+
+Patch release. Single fix for a regression introduced in 2026.5.9.
+
+### Fixes
+
+- Logging/redaction: restore the `redactToolPayloadText` export in
+  `src/logging/redact.ts`. The 2026.5.9 payment-credential redaction
+  backport (`84920fad4e`) inadvertently removed this function during
+  conflict resolution while keeping a call site (`redactStringsDeep` in
+  `src/agents/pi-embedded-subscribe.tools.ts`) that depends on it. The
+  build emitted only a rollup `MISSING_EXPORT` warning rather than an
+  error; at runtime, `sanitizeToolArgs` / `sanitizeToolResult` would
+  throw `ReferenceError: redactToolPayloadText is not defined` the
+  first time a tool argument or tool result contained a string
+  needing redaction.
+
+No other changes from 2026.5.9. See the 2026.5.9 section below for the
+full set of features in this release line.
+
 ## 2026.5.9 — 2026-05-09
 
 First SybilClaw release. Forks `openclaw/openclaw@2026.4.22` and adds a
