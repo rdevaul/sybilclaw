@@ -1,5 +1,6 @@
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { compileConfigRegex } from "../security/config-regex.js";
+import { readLoggingConfig } from "./config.js";
 import { resolveNodeRequireFromMeta } from "./node-require.js";
 import { replacePatternBounded } from "./redact-bounded.js";
 
@@ -179,6 +180,24 @@ export function redactToolDetail(detail: string): string {
     return detail;
   }
   return redactSensitiveText(detail, resolved);
+}
+
+// Forces tools-mode regardless of `logging.redactSensitive` (which governs log
+// output, not UI surfaces), and merges user `logging.redactPatterns` with the
+// built-in defaults so both apply. Used by per-tool payload sanitization in
+// pi-embedded-subscribe and other UI/transcript surfaces that must redact
+// regardless of whether general log redaction is on.
+export function redactToolPayloadText(text: string): string {
+  if (!text) {
+    return text;
+  }
+  const cfg = readLoggingConfig();
+  const userPatterns = cfg?.redactPatterns;
+  const patterns =
+    userPatterns && userPatterns.length > 0
+      ? [...userPatterns, ...DEFAULT_REDACT_PATTERNS]
+      : undefined;
+  return redactSensitiveText(text, { mode: "tools", patterns });
 }
 
 export function redactSensitiveFieldValue(key: string, value: string): string {
