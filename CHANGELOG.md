@@ -92,6 +92,68 @@ Docs: https://docs.openclaw.ai
 - Agents/Pi: keep the filtered tool-name allowlist active for embedded OpenAI/OpenAI Codex GPT-5 runs and compaction sessions, so bundled and client tools still execute after the Pi `0.68.1` session-tool allowlist change instead of stopping at plan-only replies with no tool call. (#70281) Thanks @jalehman.
 - Agents/Pi: honor explicit `strict-agentic` execution contracts for incomplete-turn retry guards across providers, so manually opted-in local or compatible models get the same retry behavior without relying on OpenAI model inference. (#66750) Thanks @ziomancer.
 
+### SybilClaw Tier 1 — Security Backports (May 2026)
+
+Following the SybilClaw stability policy, the following Tier 1 (security)
+fixes were backported individually from upstream OpenClaw `main`. Each
+commit was cherry-picked per-commit (not squashed), with bloat-ratio
+verification (our diff size vs upstream's). See
+`docs/sybilclaw/stability-policy.md` for the policy and
+`https://github.com/rdevaul/sybilclaw/pull/<this-PR>` for the per-commit
+landing record.
+
+- CLI/root guard: add a root-execution guard that blocks running the CLI
+  as uid 0 / euid 0 unless `OPENCLAW_ALLOW_ROOT=1` or
+  `OPENCLAW_CLI_CONTAINER_BYPASS=1` is set. Prevents state-dir corruption
+  (root-owned files in service-user state dir, separate `/root/.openclaw/`,
+  systemd user-service races on port 18789) when users mistakenly invoke
+  the CLI with sudo. Includes setuid-root protection (checks both real and
+  effective UID) and applies to both the new and legacy entry points.
+  Backport of upstream `ca8121d22b`, `a5f6668a5c`, `690c7aa263`,
+  `5986c2d013`, `6ec4e5cf4a`. Closes #67478.
+  Thanks @忰役, @Jerry-Xin.
+- Dependencies/security: override transitive `uuid` to `14.0.0`, clearing
+  the runtime advisory across `@azure/msal-node`, Google Auth library,
+  matrix-js-sdk, and Codex. Backport of upstream `71ae0d737a`. Thanks
+  @steipete.
+- Dependencies/security: override transitive `ip-address` to `10.2.0`,
+  clearing the runtime advisory across the dependency graph.
+  Backport of upstream `f8bb00bb8b`. Thanks @vincentkoc.
+- Logging/redaction: redact URL query credentials in diagnostic output
+  (`api_key`, `access_token`, `refresh_token`, `auth_token`,
+  `client_secret`, `hook_token`, `password`, `pass`, `passwd`, `auth`,
+  `signature`) using a sensitive-keys-only allowlist instead of redacting
+  every URL parameter. Backport of upstream `e7432ae01d`. Thanks
+  @steipete.
+- Plugins/security: block `npm_execpath` injection from a workspace `.env`,
+  which an attacker could otherwise use to redirect SybilClaw's bundled
+  runtime-deps installer to an arbitrary script. The fix strips
+  `npm_execpath` (case-insensitive) from envs handed to child npm
+  processes, refuses to trust `env.npm_execpath` when resolving the npm
+  CLI ourselves (uses only the Node executable's own install layout), and
+  adds `NPM_EXECPATH` to the workspace `.env` blocklist. Surgical backport
+  of upstream `ccb3af556f` adapted to SybilClaw's pre-`npm-install-env.ts`
+  refactor codebase. Closes upstream #73262. Thanks @pgondhi.
+
+Deferred to follow-up PRs (per-commit reviews still planned for these,
+not dropped):
+
+- Workspace PATH injection via service env and trash helpers (upstream
+  `230f7122dd`, #73264) — 940-line patch across 9 files, substantial
+  divergence in `src/daemon/service-env.ts` requires careful manual port.
+- Stop implicit tool grants from config sections (upstream `4aa08e9d79`,
+  #75055) — test-file structure diverges; HEAD has tests for the OLD
+  vulnerable behavior that must be replaced.
+- Redact payment credential fields (upstream `84920fad4e`, #75230) —
+  pattern-format divergence in `src/logging/redact.ts` between SybilClaw
+  (bare strings) and upstream (regex literals); manually portable but
+  out of scope for this batch.
+- Gateway: fail closed for trusted-proxy auth (upstream `84dd9c7395`).
+- Gateway: preserve node reconnect state (upstream `1819e41d26`, #78351).
+- Gateway: persist macOS stop disable after bootout (upstream
+  `1f88cb2ce5`).
+- Telegram: recover sticky fallback transport (upstream `252456e2f6`).
+
 ## 2026.4.21
 
 ### Changes
