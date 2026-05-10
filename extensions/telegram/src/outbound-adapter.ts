@@ -25,6 +25,7 @@ import { parseTelegramReplyToMessageId, parseTelegramThreadId } from "./outbound
 import { pinMessageTelegram } from "./send.js";
 
 export const TELEGRAM_TEXT_CHUNK_LIMIT = 4000;
+export const TELEGRAM_POLL_OPTION_LIMIT = 10;
 
 type TelegramSendFn = typeof import("./send.js").sendMessageTelegram;
 type TelegramSendOpts = Parameters<TelegramSendFn>[2];
@@ -122,6 +123,7 @@ export const telegramOutbound: ChannelOutboundAdapter = {
   chunker: markdownToTelegramHtmlChunks,
   chunkerMode: "markdown",
   textChunkLimit: TELEGRAM_TEXT_CHUNK_LIMIT,
+  pollMaxOptions: TELEGRAM_POLL_OPTION_LIMIT,
   sanitizeText: ({ text }) => sanitizeForPlainText(text),
   shouldSkipPlainTextSanitization: ({ payload }) => Boolean(payload.channelData),
   presentationCapabilities: {

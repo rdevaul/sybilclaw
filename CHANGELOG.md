@@ -92,6 +92,52 @@ Docs: https://docs.openclaw.ai
 - Agents/Pi: keep the filtered tool-name allowlist active for embedded OpenAI/OpenAI Codex GPT-5 runs and compaction sessions, so bundled and client tools still execute after the Pi `0.68.1` session-tool allowlist change instead of stopping at plan-only replies with no tool call. (#70281) Thanks @jalehman.
 - Agents/Pi: honor explicit `strict-agentic` execution contracts for incomplete-turn retry guards across providers, so manually opted-in local or compatible models get the same retry behavior without relying on OpenAI model inference. (#66750) Thanks @ziomancer.
 
+### SybilClaw Tier 2 — Stability Backports Follow-Up (May 2026)
+
+Follow-up to the May 9 tier-2 batch (#12). PR-B picks: 2 surgical
+stability fixes landed; 5 deferred to the LTS rebase per cost/benefit
+analysis.
+
+- Telegram/polling: keep polling watchdog on `getUpdates` liveness so a
+  long-running non-polling API call cannot mask a polling stall. The
+  fix already existed in our HEAD's `polling-liveness.ts` (the
+  `runnerIsRunning`-aware `detectStall` only checks polling-specific
+  elapsed time, not API liveness); this commit registers the upstream
+  commit ID for traceability and carries forward the upstream test
+  intent. Fixes upstream #78646. (Backport of `440111ff6f`. Thanks
+  @speedy-hpc.)
+- Telegram/poll cap: restore the 10-option ceiling on outbound
+  Telegram polls so messages don't fail at delivery time when an
+  agent constructs a poll with more options than Telegram allows.
+  Adds `TELEGRAM_POLL_OPTION_LIMIT = 10` and surfaces it as
+  `pollMaxOptions` on the outbound adapter. Surgical port adapted to
+  SybilClaw's literal-const adapter shape (upstream uses a factory
+  function we don't have). (Backport of `c967628816`. Thanks
+  @obviy-us.)
+
+Deferred from PR-B (5 picks) and from the May 9 tier-2 batch (15 more):
+
+- `11d6a3f892` (telegram dm-allow): SybilClaw's `bot-message-context.ts`
+  uses different helper composition than upstream
+  (`normalizeDmAllowFromWithStore` direct vs `resolveTelegramDmAllow`
+  helper); the `Promise.all` -> sequential refactor doesn't apply.
+- `6f4272bd04` (provider streaming errors): no-op for our HEAD; the
+  `!response.ok` guard in `sanitizeOpenAISdkSseResponse` is already
+  present.
+- `f463d471d3` (gateway live model registry): test-only commit using
+  helpers (`providerListFromExplicitModelFilter`,
+  `providerScopedModelRegistryProviders`, `createGatewayLiveTestModel`)
+  that don't exist in our HEAD.
+- `cbc69d9a96` + `397cf2b9ff` (gateway version skew + mismatch warnings,
+  paired): 11+6 files; introduces a new helper
+  `resolveGatewayStatusProbeDetails` and refactors auth/version probe
+  resolution. Bigger structural divergence than initially estimated;
+  deferred to LTS rebase.
+
+The remaining 15 deferred tier-2 picks from the May 9 batch are listed
+in the May 9 CHANGELOG section and tagged for LTS-rebase per the
+stability policy.
+
 ### SybilClaw Tier 1 — Security Backports Follow-Up (May 2026)
 
 Follow-up to the May 9 tier-1 batch that landed in #11. These three picks
