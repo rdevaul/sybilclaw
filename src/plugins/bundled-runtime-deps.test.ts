@@ -37,19 +37,43 @@ afterEach(() => {
 });
 
 describe("resolveBundledRuntimeDepsNpmRunner", () => {
-  it("uses npm_execpath through node on Windows when available", () => {
+  it("ignores npm_execpath and uses the Node-adjacent npm CLI on Windows", () => {
+    // Security: a workspace-local .env can poison process.env.npm_execpath
+    // and aim it at an attacker-controlled script. Backport of upstream
+    // OpenClaw fix #73262: never trust env.npm_execpath, only use the
+    // Node executable's own install layout.
+    const execPath = "C:\\Program Files\\nodejs\\node.exe";
+    const npmCliPath = path.win32.resolve(
+      path.win32.dirname(execPath),
+      "node_modules/npm/bin/npm-cli.js",
+    );
     const runner = resolveBundledRuntimeDepsNpmRunner({
-      env: { npm_execpath: "C:\\node\\node_modules\\npm\\bin\\npm-cli.js" },
-      execPath: "C:\\Program Files\\nodejs\\node.exe",
-      existsSync: (candidate) => candidate === "C:\\node\\node_modules\\npm\\bin\\npm-cli.js",
+      env: { npm_execpath: "C:\\repo\\evil\\npm-cli.js" },
+      execPath,
+      existsSync: (candidate) =>
+        candidate === "C:\\repo\\evil\\npm-cli.js" || candidate === npmCliPath,
       npmArgs: ["install", "acpx@0.5.3"],
       platform: "win32",
     });
 
     expect(runner).toEqual({
-      command: "C:\\Program Files\\nodejs\\node.exe",
-      args: ["C:\\node\\node_modules\\npm\\bin\\npm-cli.js", "install", "acpx@0.5.3"],
+      command: execPath,
+      args: [npmCliPath, "install", "acpx@0.5.3"],
     });
+  });
+
+  it("strips npm_execpath from createBundledRuntimeDepsInstallEnv (case-insensitive)", () => {
+    // Security: the install env we hand to npm must not propagate a poisoned
+    // npm_execpath that an upstream caller's process.env happens to contain.
+    // Backport of upstream OpenClaw fix #73262.
+    const env = createBundledRuntimeDepsInstallEnv({
+      PATH: "/usr/bin:/bin",
+      npm_execpath: "/repo/evil/npm-cli.js",
+      NPM_EXECPATH: "/repo/evil-uppercase/npm-cli.js",
+    });
+    expect(env.npm_execpath).toBeUndefined();
+    expect((env as Record<string, unknown>).NPM_EXECPATH).toBeUndefined();
+    expect(env.PATH).toBe("/usr/bin:/bin");
   });
 
   it("uses package-manager-neutral install args with npm config env", () => {
@@ -161,10 +185,20 @@ describe("installBundledRuntimeDeps", () => {
     );
   });
 
-  it("uses the npm cmd shim on Windows", () => {
+  it("uses the Node-adjacent npm cmd shim on Windows and ignores poisoned npm_execpath", () => {
+    // After OpenClaw fix #73262 we never trust env.npm_execpath; the npm CLI
+    // is resolved purely from the Node executable's own install layout. The
+    // poisoned npm_execpath below MUST be ignored.
     vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    const nodeAdjacentNpmCliPath = path.win32.resolve(
+      path.win32.dirname(process.execPath),
+      "node_modules/npm/bin/npm-cli.js",
+    );
     vi.spyOn(fs, "existsSync").mockImplementation(
-      (candidate) => candidate === "C:\\node\\node_modules\\npm\\bin\\npm-cli.js",
+      (candidate) =>
+        candidate === nodeAdjacentNpmCliPath ||
+        // attacker-controlled path stays "present" but unused
+        candidate === "C:\\repo\\evil\\npm-cli.js",
     );
     spawnSyncMock.mockReturnValue({
       pid: 123,
@@ -181,13 +215,13 @@ describe("installBundledRuntimeDeps", () => {
       env: {
         npm_config_prefix: "C:\\prefix",
         PATH: "C:\\node",
-        npm_execpath: "C:\\node\\node_modules\\npm\\bin\\npm-cli.js",
+        npm_execpath: "C:\\repo\\evil\\npm-cli.js",
       },
     });
 
     expect(spawnSyncMock).toHaveBeenCalledWith(
       expect.any(String),
-      ["C:\\node\\node_modules\\npm\\bin\\npm-cli.js", "install", "--ignore-scripts", "acpx@0.5.3"],
+      [nodeAdjacentNpmCliPath, "install", "--ignore-scripts", "acpx@0.5.3"],
       expect.objectContaining({
         cwd: "C:\\openclaw",
         env: expect.objectContaining({

@@ -43,6 +43,13 @@ export type BundledRuntimeDepsInstallRoot = {
 type JsonObject = Record<string, unknown>;
 const RETAINED_RUNTIME_DEPS_MANIFEST = ".openclaw-runtime-deps.json";
 
+// Block npm_execpath injection from a workspace .env: an attacker who can
+// write a workspace-local .env can otherwise redirect our bundled-runtime-deps
+// install to an arbitrary script. We strip this var from envs we construct
+// for child npm processes and ignore it when resolving the npm CLI ourselves.
+// Backport of upstream OpenClaw security fix (#73262).
+const NPM_EXECPATH_ENV_KEY = "npm_execpath";
+
 export type BundledRuntimeDepsNpmRunner = {
   command: string;
   args: string[];
@@ -426,12 +433,20 @@ function createNestedNpmInstallEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 }
 
 export function createBundledRuntimeDepsInstallEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return {
+  const nextEnv: NodeJS.ProcessEnv = {
     ...createNestedNpmInstallEnv(env),
     npm_config_legacy_peer_deps: "true",
     npm_config_package_lock: "false",
     npm_config_save: "false",
   };
+  // Drop npm_execpath so a poisoned workspace .env cannot redirect npm via
+  // process.env propagation. Case-insensitive because Windows tolerates that.
+  for (const key of Object.keys(nextEnv)) {
+    if (key.toLowerCase() === NPM_EXECPATH_ENV_KEY) {
+      delete nextEnv[key];
+    }
+  }
+  return nextEnv;
 }
 
 export function createBundledRuntimeDepsInstallArgs(missingSpecs: readonly string[]): string[] {
@@ -448,11 +463,6 @@ function resolvePathEnvKey(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): s
   return Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path";
 }
 
-function isNpmCliPath(candidate: string): boolean {
-  const normalized = candidate.replaceAll("\\", "/").toLowerCase();
-  return normalized.endsWith("/npm-cli.js") || normalized.endsWith("/npm/bin/npm-cli.js");
-}
-
 export function resolveBundledRuntimeDepsNpmRunner(params: {
   npmArgs: string[];
   env?: NodeJS.ProcessEnv;
@@ -466,16 +476,13 @@ export function resolveBundledRuntimeDepsNpmRunner(params: {
   const platform = params.platform ?? process.platform;
   const pathImpl = platform === "win32" ? path.win32 : path.posix;
   const nodeDir = pathImpl.dirname(execPath);
-  const rawNpmExecPath = normalizeOptionalLowercaseString(env.npm_execpath)
-    ? env.npm_execpath
-    : undefined;
-  const npmExecPath = rawNpmExecPath && isNpmCliPath(rawNpmExecPath) ? rawNpmExecPath : undefined;
-
+  // Do NOT trust env.npm_execpath: a workspace-local .env can be hostile.
+  // Resolve only via the node executable's own install layout. Backport of
+  // upstream OpenClaw security fix (#73262).
   const npmCliCandidates = [
-    npmExecPath,
     pathImpl.resolve(nodeDir, "../lib/node_modules/npm/bin/npm-cli.js"),
     pathImpl.resolve(nodeDir, "node_modules/npm/bin/npm-cli.js"),
-  ].filter((candidate): candidate is string => Boolean(candidate));
+  ];
   const npmCliPath = npmCliCandidates.find(
     (candidate) => pathImpl.isAbsolute(candidate) && existsSync(candidate),
   );
