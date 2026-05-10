@@ -92,6 +92,43 @@ Docs: https://docs.openclaw.ai
 - Agents/Pi: keep the filtered tool-name allowlist active for embedded OpenAI/OpenAI Codex GPT-5 runs and compaction sessions, so bundled and client tools still execute after the Pi `0.68.1` session-tool allowlist change instead of stopping at plan-only replies with no tool call. (#70281) Thanks @jalehman.
 - Agents/Pi: honor explicit `strict-agentic` execution contracts for incomplete-turn retry guards across providers, so manually opted-in local or compatible models get the same retry behavior without relying on OpenAI model inference. (#66750) Thanks @ziomancer.
 
+### SybilClaw Tier 1 — Security Backports Follow-Up (May 2026)
+
+Follow-up to the May 9 tier-1 batch that landed in #11. These three picks
+were deferred from the original batch because of structural divergence;
+landed individually after focused review.
+
+- Gateway/auth: trusted-proxy auth fails closed when the proxy identity
+  check fails, instead of falling back to local-direct password
+  credentials. This was a no-op for the SybilClaw HEAD codebase (the
+  vulnerable fallback path didn't exist in our auth.ts) but the upstream
+  test additions are kept as security regression coverage. (Backport of
+  upstream `84dd9c7395`. Closes upstream #78684. Thanks @steipete.)
+  NOTE: 3 upstream tests for the `trustedProxy.allowLoopback` config
+  setting were dropped because that setting doesn't exist in SybilClaw's
+  current trusted-proxy config surface; recoverable when SybilClaw adopts
+  the upstream `allowLoopback` setting.
+- Logging/redaction: redact payment credential fields
+  (CARD_NUMBER / CVC / CVV / SECURITY_CODE / PAYMENT_CREDENTIAL /
+  SHARED_PAYMENT_TOKEN) when they appear as JSON fields, URL parameters,
+  CLI flags, or assignments in tool payload text and diagnostic output.
+  Adds a key-aware `redactSensitiveFieldValue` helper used by the
+  recursive structured-data redactor so structured fields with sensitive
+  names get masked even when their values would otherwise pass the
+  pattern checks. (Backport of upstream `84920fad4e`. Closes upstream
+  #75230. Thanks @stainlu.)
+- Tools/security: stop implicit tool grants from config sections.
+  Configuring a `tools.exec` / `tools.fs` / `tools.process` block no
+  longer implicitly widens the active profile to expose those tool
+  families. Operators must declare them explicitly via
+  `tools.alsoAllow` if they want to widen a profile. The previous
+  implicit grant could let a `messaging` profile gain
+  `exec`/`process`/`read`/`write`/`edit` just because the operator added
+  a configuration block, which is unsafe. SybilClaw's existing tests
+  asserting the OLD vulnerable behavior were replaced with tests
+  asserting the new fail-secure behavior. (Backport of upstream
+  `4aa08e9d79`. Closes upstream #47487. Thanks @aknight.)
+
 ### SybilClaw Tier 2 — Stability Backports (May 2026)
 
 Following the SybilClaw stability policy

@@ -1,5 +1,6 @@
 import { getChannelPlugin, normalizeChannelId } from "../channels/plugins/index.js";
 import { normalizeTargetForProvider } from "../infra/outbound/target-normalization.js";
+import { redactSensitiveFieldValue, redactToolPayloadText } from "../logging/redact.js";
 import { splitMediaFromOutput } from "../media/parse.js";
 import { pluginRegistrationContractRegistry } from "../plugins/contracts/registry.js";
 import {
@@ -87,6 +88,38 @@ function extractErrorField(value: unknown): string | undefined {
     return undefined;
   }
   return normalizeToolErrorText(status);
+}
+
+function redactStringsDeep(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (typeof value === "string") {
+    return redactToolPayloadText(value);
+  }
+  if (Array.isArray(value)) {
+    if (seen.has(value)) {
+      return "[Circular]";
+    }
+    seen.add(value);
+    return value.map((item) => redactStringsDeep(item, seen));
+  }
+  if (value && typeof value === "object") {
+    if (seen.has(value)) {
+      return "[Circular]";
+    }
+    seen.add(value);
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      out[key] =
+        typeof child === "string"
+          ? redactSensitiveFieldValue(key, child)
+          : redactStringsDeep(child, seen);
+    }
+    return out;
+  }
+  return value;
+}
+
+export function sanitizeToolArgs(args: unknown): unknown {
+  return redactStringsDeep(args);
 }
 
 export function sanitizeToolResult(result: unknown): unknown {

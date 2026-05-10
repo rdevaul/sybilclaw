@@ -240,7 +240,14 @@ describe("resolveSubagentToolPolicy depth awareness", () => {
 });
 
 describe("resolveEffectiveToolPolicy", () => {
-  it("implicitly re-exposes exec and process when tools.exec is configured", () => {
+  // Backport of upstream OpenClaw security fix #47487 (`4aa08e9d79`):
+  // configuring a `tools.exec` / `tools.fs` / `tools.process` section no
+  // longer implicitly grants those tools at the profile level. Operators
+  // must declare them explicitly via `tools.alsoAllow` if they want to widen
+  // a profile. Previously the implicit grant could let a `messaging` profile
+  // gain `exec`/`process`/read/write/edit just because the operator added a
+  // configuration block, which is unsafe.
+  it("does NOT implicitly grant exec/process when tools.exec is configured", () => {
     const cfg = {
       tools: {
         profile: "messaging",
@@ -248,10 +255,10 @@ describe("resolveEffectiveToolPolicy", () => {
       },
     } as OpenClawConfig;
     const result = resolveEffectiveToolPolicy({ config: cfg });
-    expect(result.profileAlsoAllow).toEqual(["exec", "process"]);
+    expect(result.profileAlsoAllow).toBeUndefined();
   });
 
-  it("implicitly re-exposes read, write, and edit when tools.fs is configured", () => {
+  it("does NOT implicitly grant read/write/edit when tools.fs is configured", () => {
     const cfg = {
       tools: {
         profile: "messaging",
@@ -259,10 +266,10 @@ describe("resolveEffectiveToolPolicy", () => {
       },
     } as OpenClawConfig;
     const result = resolveEffectiveToolPolicy({ config: cfg });
-    expect(result.profileAlsoAllow).toEqual(["read", "write", "edit"]);
+    expect(result.profileAlsoAllow).toBeUndefined();
   });
 
-  it("merges explicit alsoAllow with implicit tool-section exposure", () => {
+  it("only honors explicit alsoAllow, ignoring tool-section implicit exposure", () => {
     const cfg = {
       tools: {
         profile: "messaging",
@@ -271,10 +278,10 @@ describe("resolveEffectiveToolPolicy", () => {
       },
     } as OpenClawConfig;
     const result = resolveEffectiveToolPolicy({ config: cfg });
-    expect(result.profileAlsoAllow).toEqual(["web_search", "exec", "process"]);
+    expect(result.profileAlsoAllow).toEqual(["web_search"]);
   });
 
-  it("uses agent tool sections when resolving implicit exposure", () => {
+  it("does NOT widen profile via agent-scoped tools.fs section", () => {
     const cfg = {
       tools: {
         profile: "messaging",
@@ -291,6 +298,6 @@ describe("resolveEffectiveToolPolicy", () => {
       },
     } as OpenClawConfig;
     const result = resolveEffectiveToolPolicy({ config: cfg, agentId: "coder" });
-    expect(result.profileAlsoAllow).toEqual(["read", "write", "edit"]);
+    expect(result.profileAlsoAllow).toBeUndefined();
   });
 });
