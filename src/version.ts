@@ -159,3 +159,9 @@ export const VERSION = resolveBinaryVersion({
   injectedVersion: typeof __OPENCLAW_VERSION__ === "string" ? __OPENCLAW_VERSION__ : undefined,
   bundledVersion: process.env.OPENCLAW_BUNDLED_VERSION,
 });
+
+// Upstream OpenClaw baseline this SybilClaw release was forked from.
+// Bumped at LTS-rebase time, NOT at every SybilClaw release. Used by the
+// `--version` lineage line and any plugin-host messaging that wants to be
+// honest about which upstream OpenClaw features are actually present.
+export const OPENCLAW_BASE_VERSION = "2026.4.22";

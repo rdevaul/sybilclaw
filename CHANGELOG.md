@@ -2,6 +2,50 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.5.9 — 2026-05-09
+
+First SybilClaw release. Forks `openclaw/openclaw@2026.4.22` and adds a
+curated stack of security/stability backports plus the SybilClaw
+rebrand and stability policy. See `docs/sybilclaw/stability-policy.md`
+for the backport policy that governs which upstream changes land here.
+
+### Highlights
+
+- **SybilClaw rebrand for downstream npm consumers.** Root package
+  renamed from `openclaw` to `sybilclaw`. The `--version` output now
+  reports `SybilClaw <version> (<sha>)\nbased on OpenClaw <version>` so
+  scripts that grep the upstream name in CLI output keep working.
+  Internal protocol surfaces (provider User-Agent, mDNS service name,
+  `/v1/models` `owned_by`, plugin host-version checks) deliberately
+  still self-identify as `openclaw` for upstream interop.
+- **Tier 1 security backports** (12 commits): root-execution guard with
+  setuid-aware euid check and container-bypass; vulnerable `uuid`
+  override (`14.0.0`); vulnerable `ip-address` override (`10.2.0`); URL
+  query credential redaction in diagnostics; `npm_execpath` injection
+  block from workspace `.env`; payment credential redaction; gateway
+  trusted-proxy fail-closed; stop implicit tool grants from config
+  sections.
+- **Tier 2 stability backports** (6 commits): Ollama streaming usage
+  compat; gateway no-auth local backend bypass; Slack socket retry
+  message clarification; subagent-announce retry on overload; Telegram
+  polling watchdog liveness; Telegram outbound poll cap.
+- **Per-session ContextEngine compaction ownership** (the carried
+  SybilClaw work that motivated the fork). Lets per-session compaction
+  drivers own the compaction lifecycle without the runtime racing them
+  on the active turn.
+- **Stability policy doc** (`docs/sybilclaw/stability-policy.md`)
+  declaring the three-tier backport process, the bloat-ratio reviewer
+  diagnostic, the pre-LTS feature freeze, and the LTS rebase plan.
+
+### Deferred to LTS rebase
+
+~24 upstream picks identified as having structural divergence with the
+SybilClaw HEAD (deeper refactors, helper files we don't have, test-file
+structure changes). All listed in the per-batch CHANGELOG sections
+below. They will be picked up via the LTS rebase when upstream tags
+an LTS release; until then, SybilClaw is feature-frozen relative to
+upstream per the stability policy.
+
 ## Unreleased
 
 ### Changes
