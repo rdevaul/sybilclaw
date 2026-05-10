@@ -92,6 +92,72 @@ Docs: https://docs.openclaw.ai
 - Agents/Pi: keep the filtered tool-name allowlist active for embedded OpenAI/OpenAI Codex GPT-5 runs and compaction sessions, so bundled and client tools still execute after the Pi `0.68.1` session-tool allowlist change instead of stopping at plan-only replies with no tool call. (#70281) Thanks @jalehman.
 - Agents/Pi: honor explicit `strict-agentic` execution contracts for incomplete-turn retry guards across providers, so manually opted-in local or compatible models get the same retry behavior without relying on OpenAI model inference. (#66750) Thanks @ziomancer.
 
+### SybilClaw Tier 2 — Stability Backports (May 2026)
+
+Following the SybilClaw stability policy
+(see `docs/sybilclaw/stability-policy.md`), the following Tier 2 stability
+fixes were backported from upstream OpenClaw `main`. Each commit was
+cherry-picked per-commit, with bloat-ratio verification and hunk-level
+conflict resolution.
+
+- Providers/Ollama: always advertise `supportsUsageInStreaming: true` in
+  the Ollama model definition's compat block, and always emit a `compat`
+  block (even when capabilities are unknown), so streaming usage tokens
+  are preserved across all Ollama model variants instead of being lost
+  when capabilities aren't pre-declared.
+  Backport of upstream `930b443c9e`. Thanks @steipete.
+- Gateway/auth: scoped no-auth local backend bypass. When
+  `gateway.auth.mode = "none"`, local backend self-pairing was rejected
+  with `1008: device identity required` because the bypass was gated on
+  `sharedAuthOk` (false in no-auth mode). Now the bypass triggers when
+  the connection is local (`direct_local`) without a browser-origin
+  header and `authMethod === "none"`. Remote and browser-originated
+  connections still require proper device auth. Closes upstream #75781.
+  Backport of upstream `f29efde73a`. Thanks @theavadaigo and
+  @paperclip.
+- Slack/socket-mode: clarify retry messages by extracting
+  `formatSlackSocketStartRetryMessage` and using it in the start-failure
+  retry path so the `slack socket mode failed to start; retry N/M in Xs
+  reason="..."` text is consistent and parseable. Backport of upstream
+  `9f2c8a6ab6`. Thanks @steipete.
+- Agents/subagent-announce: retry overloaded subagent announces against
+  transient gateway-overload responses so completion deliveries do not
+  silently drop when the parent session's gateway is briefly busy.
+  Backport of upstream `e74347bbe7`. Thanks @steipete.
+
+Deferred to follow-up PRs (per-commit reviews planned, not dropped):
+
+- `b32d4c5255` — avoid media completion fallback while announce
+  pending (multi-region structural divergence in
+  `src/agents/subagent-announce-delivery.ts`).
+- `63ce0ca966` — persist embedded session transcripts (#77839).
+- `bca16d0f00` — telegram: finalize streamed text in place.
+- `f0c174607b` — agent: persist visible embedded final replies.
+- `6aafdf121a` — cron: repair bad persisted model sentinels (#78641).
+- `440111ff6f` — telegram: keep polling watchdog on getUpdates
+  liveness (#78646).
+- `c967628816` — telegram: restore outbound poll cap.
+- `11d6a3f892` — telegram: keep dm allow separate from group auth.
+- `9b279ef173` — agents: reclaim reported stale session locks.
+- `6f4272bd04` — providers: preserve streaming error bodies.
+- `cbc69d9a96` — surface gateway version skew.
+- `f463d471d3` — gateway: scope explicit live model registry.
+- `6cfb08680e` — codex: close app-server stdio gracefully.
+- `397cf2b9ff` — clarify gateway version mismatch warnings.
+- `564ab9b89b` — reduce Telegram command menu CPU work.
+- `d44aeb6901` — telegram: mirror outbound replies to session transcript.
+- `5fdef4c39e` — codex: ignore account updates for turn liveness
+  (#79667).
+- `757324e40f` — status: show codex usage for codex harness.
+- `fa79e9754e` — gateway: harden macOS update restart lifecycle.
+- `b6265c1504` — telegram: harden command menu cache keys.
+
+All deferred picks have substantial structural divergence between
+SybilClaw HEAD and upstream (refactors we don't have, helper modules
+that moved, test-file structure changes). Each will get a focused
+follow-up PR rather than risk subtle regressions in a large multi-commit
+batch.
+
 ### SybilClaw Tier 1 — Security Backports (May 2026)
 
 Following the SybilClaw stability policy, the following Tier 1 (security)
