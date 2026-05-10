@@ -1,7 +1,7 @@
 # SybilClaw Stability Policy
 
 SybilClaw is a friendly fork of [OpenClaw](https://github.com/openclaw/openclaw)
-maintained by Dark Matter Lab. Our goal is **boring reliability**: the version
+maintained by Rich DeVaul and Dark Matter Lab. Our goal is **boring reliability**: the version
 you ran yesterday should still work today, and you shouldn't have to babysit
 upstream churn to stay safe.
 
