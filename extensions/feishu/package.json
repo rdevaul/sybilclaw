@@ -13,7 +13,7 @@
     "sybilclaw": "workspace:*"
   },
   "peerDependencies": {
-    "sybilclaw": ">=2026.5.9"
+    "sybilclaw": ">=2026.5.10"
   },
   "peerDependenciesMeta": {
     "sybilclaw": {
