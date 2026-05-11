@@ -19,8 +19,21 @@ const OMITTED_PRIVATE_QA_PLUGIN_SDK_FILES = new Set([
   "dist/plugin-sdk/src/plugin-sdk/qa-runtime.d.ts",
 ]);
 const OMITTED_PRIVATE_QA_DIST_PREFIXES = ["dist/qa-runtime-"];
+// First pattern below intentionally omits ONLY non-openclaw descendants of
+// `dist/extensions/node_modules/`. The openclaw → plugin-sdk alias shim at
+// `dist/extensions/node_modules/openclaw/` contains real wrapper JS files
+// (not symlinks) that re-export from `dist/plugin-sdk/`, and is required at
+// install time for bundled extension imports like
+// `import "openclaw/plugin-sdk/routing"` to resolve — Node walks up the dir
+// tree from each extension file and finds the fake `openclaw` package here.
+//
+// Without the negative lookahead carving out openclaw, the post-install pruner
+// treats the shim as "stale dist files" (because they're not in the inventory)
+// and deletes them, which breaks every extension that imports from
+// `openclaw/*` at runtime. The `dist/extensions/node_modules` directory itself
+// is NOT omitted so the walker descends into it to reach `openclaw/`.
 const OMITTED_DIST_SUBTREE_PATTERNS = [
-  /^dist\/extensions\/node_modules(?:\/|$)/u,
+  /^dist\/extensions\/node_modules\/(?!openclaw(?:\/|$))/u,
   /^dist\/extensions\/[^/]+\/node_modules(?:\/|$)/u,
   /^dist\/extensions\/qa-matrix(?:\/|$)/u,
   new RegExp(`^dist/plugin-sdk/extensions/${LEGACY_QA_LAB_DIR}(?:/|$)`, "u"),

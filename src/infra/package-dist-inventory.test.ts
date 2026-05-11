@@ -79,21 +79,12 @@ describe("package dist inventory", () => {
         ".bin",
         "color-support",
       );
-      const omittedExtensionRootAliasSymlink = path.join(
-        packageRoot,
-        "dist",
-        "extensions",
-        "node_modules",
-        "openclaw",
-        "plugin-sdk",
-      );
       const omittedMap = path.join(packageRoot, "dist", "feature.runtime.js.map");
       await fs.mkdir(path.dirname(packagedQaChannelRuntime), { recursive: true });
       await fs.mkdir(path.dirname(packagedQaLabRuntime), { recursive: true });
       await fs.mkdir(path.dirname(omittedQaMatrixChunk), { recursive: true });
       await fs.mkdir(path.dirname(omittedQaLabTypes), { recursive: true });
       await fs.mkdir(path.dirname(omittedExtensionNodeModuleSymlink), { recursive: true });
-      await fs.mkdir(path.dirname(omittedExtensionRootAliasSymlink), { recursive: true });
       await fs.mkdir(path.join(packageRoot, "dist", "plugin-sdk"), { recursive: true });
       await fs.writeFile(path.join(packageRoot, "color-support.js"), "export {};\n", "utf8");
       await fs.writeFile(packagedQaChannelRuntime, "export {};\n", "utf8");
@@ -108,15 +99,53 @@ describe("package dist inventory", () => {
         path.join(packageRoot, "color-support.js"),
         omittedExtensionNodeModuleSymlink,
       );
-      await fs.symlink(
-        path.join(packageRoot, "dist", "plugin-sdk"),
-        omittedExtensionRootAliasSymlink,
-      );
       await fs.writeFile(omittedMap, "{}", "utf8");
 
       await expect(writePackageDistInventory(packageRoot)).resolves.toEqual([
         "dist/extensions/qa-channel/runtime-api.js",
       ]);
+    });
+  });
+
+  it("includes the openclaw -> plugin-sdk alias shim in the inventory", async () => {
+    // Regression: the omit pattern for `dist/extensions/node_modules/` was
+    // accidentally catching the legitimate openclaw alias shim. The shim
+    // contains real wrapper JS files (not symlinks) that re-export from
+    // `dist/plugin-sdk/`, and is required at install time for bundled
+    // extension imports like `import "openclaw/plugin-sdk/routing"` to resolve.
+    await withTempDir({ prefix: "openclaw-dist-inventory-shim-" }, async (packageRoot) => {
+      const shimDir = path.join(
+        packageRoot,
+        "dist",
+        "extensions",
+        "node_modules",
+        "openclaw",
+        "plugin-sdk",
+      );
+      await fs.mkdir(shimDir, { recursive: true });
+      await fs.writeFile(
+        path.join(shimDir, "routing.js"),
+        "export * from \"../../../../plugin-sdk/routing.js\";\n",
+        "utf8",
+      );
+      await fs.writeFile(
+        path.join(packageRoot, "dist", "extensions", "node_modules", "openclaw", "package.json"),
+        JSON.stringify({
+          name: "openclaw",
+          type: "module",
+          exports: {
+            "./plugin-sdk": "./plugin-sdk/index.js",
+            "./plugin-sdk/*": "./plugin-sdk/*.js",
+          },
+        }),
+        "utf8",
+      );
+
+      const inventory = await writePackageDistInventory(packageRoot);
+      expect(inventory).toContain(
+        "dist/extensions/node_modules/openclaw/plugin-sdk/routing.js",
+      );
+      expect(inventory).toContain("dist/extensions/node_modules/openclaw/package.json");
     });
   });
   it("fails closed when the inventory is missing", async () => {
