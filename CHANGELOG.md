@@ -2,6 +2,35 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.5.12 — 2026-05-12
+
+Patch release. Packaging-only fix: stay under npm's per-package file
+count limit so `sybilclaw` can be published to the registry. No
+runtime behavior change from 2026.5.11.
+
+### Fixes
+
+- Packaging: exclude `dist/extensions/*/node_modules/**` from the
+  published tarball. The 2026.5.11 tarball (~78,800 files) was
+  rejected by the npm registry with `E415 (Too many files)` — npm
+  caps published packages somewhere around 75K files, and each
+  bundled extension's full node_modules tree was being shipped
+  in full. Per-extension runtime deps now install lazily on first
+  plugin activation via `ensureBundledPluginRuntimeDeps` (the
+  existing runtime mechanism this is already designed around).
+  - The `openclaw` → plugin-sdk alias shim at
+    `dist/extensions/node_modules/openclaw/` is NOT excluded by this
+    pattern (different path: at the extensions root, not inside a
+    specific extension's node_modules) so plugins can still resolve
+    `openclaw/plugin-sdk/...` at runtime.
+  - Net effect on the tarball: ~78,800 entries → ~7,500 entries,
+    113 MiB → ~13 MiB. First plugin activation for each bundled
+    channel pays the cost of `npm install` for that channel's deps
+    (typically a few seconds per channel, one-time).
+
+No other changes from 2026.5.11. See the 2026.5.11 / 2026.5.10 /
+2026.5.9 sections below for the full feature set in this release line.
+
 ## 2026.5.11 — 2026-05-12
 
 Patch release. Fixes a packaging bug that made `sybilclaw@2026.5.10`
