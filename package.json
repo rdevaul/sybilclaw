@@ -1,6 +1,6 @@
 {
   "name": "sybilclaw",
-  "version": "2026.5.11",
+  "version": "2026.5.12",
   "description": "Multi-channel AI gateway with extensible messaging integrations",
   "keywords": [],
   "homepage": "https://github.com/rdevaul/sybilclaw#readme",
@@ -29,7 +29,7 @@
     "dist/",
     "!dist/**/*.map",
     "!dist/plugin-sdk/.tsbuildinfo",
-    "dist/extensions/*/node_modules/**",
+    "!dist/extensions/*/node_modules/**",
     "!dist/extensions/qa-channel/**",
     "dist/extensions/qa-channel/runtime-api.js",
     "!dist/extensions/qa-lab/**",
