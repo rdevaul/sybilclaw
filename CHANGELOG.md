@@ -2,6 +2,52 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.5.11 — 2026-05-12
+
+Patch release. Fixes a packaging bug that made `sybilclaw@2026.5.10`
+functionally broken when installed from npm. No runtime behavior change
+beyond restoring the broken plugin loader.
+
+### Fixes
+
+- Packaging/postinstall: include the `openclaw` → plugin-sdk alias shim
+  at `dist/extensions/node_modules/openclaw/` in
+  `dist/postinstall-inventory.json`. Without this, the postinstall
+  script (`scripts/postinstall-bundled-plugins.mjs`) treated the 294
+  shim files as "stale dist files" and deleted them on every install —
+  breaking every bundled channel plugin (Discord, Telegram, Matrix,
+  Slack, WhatsApp, Feishu, etc.) with `Cannot find package 'openclaw'
+  imported from .../token-*.js`. The shim is the fake `openclaw`
+  package that 357 built extension JS files import from
+  (`import { ... } from "openclaw/plugin-sdk/..."`); Node walks up the
+  directory tree from each extension file and resolves the bare
+  specifier against it.
+  - Root cause: `OMITTED_DIST_SUBTREE_PATTERNS` in
+    `src/infra/package-dist-inventory.ts` had
+    `/^dist\/extensions\/node_modules(?:\/|$)/u` which matched the
+    shim's path and excluded it from inventory generation. The omission
+    was probably intended for transient build artifacts, but the
+    openclaw shim is the only legitimate inhabitant of that directory
+    and must be installed.
+  - Fix: tightened the omit regex with a negative lookahead so it omits
+    everything under `dist/extensions/node_modules/` EXCEPT `openclaw/`.
+    Added a regression test asserting the shim's 294 files appear in
+    the inventory.
+
+Verified end-to-end before release: built tarball, did
+`npm install /path/to/tarball` into a fresh temp dir, confirmed all 294
+shim files survive postinstall, and loaded discord/telegram/matrix
+channel entries directly — each returns
+`kind: bundled-channel-entry` and `plugin.id` matches. Pre-fix the same
+test produced `Cannot find package 'openclaw'` errors.
+
+**`sybilclaw@2026.5.10` on npm is broken by this bug.** Operators who
+installed 2026.5.10 should upgrade to 2026.5.11 immediately; channel
+plugins are unusable on the broken version.
+
+No other changes from 2026.5.10. See the 2026.5.10 / 2026.5.9 sections
+below for the full feature set in this release line.
+
 ## 2026.5.10 — 2026-05-09
 
 Patch release. Single fix for a regression introduced in 2026.5.9.
