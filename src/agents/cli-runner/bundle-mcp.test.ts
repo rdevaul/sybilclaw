@@ -110,7 +110,7 @@ describe("prepareCliBundleMcpConfig", () => {
 
   it("loads workspace bundle MCP plugins from the configured workspace root", async () => {
     const workspaceDir = await tempHarness.createTempDir("openclaw-cli-bundle-mcp-workspace-root-");
-    const pluginRoot = path.join(workspaceDir, ".openclaw", "extensions", "workspace-probe");
+    const pluginRoot = path.join(workspaceDir, ".sybilclaw", "extensions", "workspace-probe");
     const serverPath = path.join(pluginRoot, "servers", "probe.mjs");
     await fs.mkdir(path.dirname(serverPath), { recursive: true });
     await fs.writeFile(serverPath, "export {};\n", "utf-8");

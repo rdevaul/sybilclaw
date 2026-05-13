@@ -17,7 +17,7 @@ export function resolveDefaultAgentWorkspaceDir(
   const home = resolveRequiredHomeDir(env, homedir);
   const profile = env.OPENCLAW_PROFILE?.trim();
   if (profile && normalizeOptionalLowercaseString(profile) !== "default") {
-    return path.join(home, ".openclaw", `workspace-${profile}`);
+    return path.join(home, ".sybilclaw", `workspace-${profile}`);
   }
   return path.join(home, ".sybilclaw", "workspace");
 }
