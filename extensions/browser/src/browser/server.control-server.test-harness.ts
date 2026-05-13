@@ -220,10 +220,12 @@ const passThroughActDispatch: Record<string, PassThroughActDispatch> = {
   select: {
     mock: pwMocks.selectOptionViaPlaywright,
     fields: ["ref", "selector", "values", "timeoutMs"],
+    includeSsrf: true,
   },
   fill: {
     mock: pwMocks.fillFormViaPlaywright,
     fields: ["fields", "timeoutMs"],
+    includeSsrf: true,
   },
   resize: {
     mock: pwMocks.resizeViewportViaPlaywright,
