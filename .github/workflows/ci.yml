@@ -537,10 +537,10 @@ jobs:
           retention-days: 1
 
       - name: Smoke test CLI launcher help
-        run: node openclaw.mjs --help
+        run: node sybilclaw.mjs --help
 
       - name: Smoke test CLI launcher status json
-        run: node openclaw.mjs status --json --timeout 1
+        run: node sybilclaw.mjs status --json --timeout 1
 
       - name: Smoke test built bundled plugin singleton
         run: pnpm test:build:singleton
@@ -1094,8 +1094,8 @@ jobs:
         run: |
           pnpm build
           pnpm ui:build
-          node openclaw.mjs --help
-          node openclaw.mjs status --json --timeout 1
+          node sybilclaw.mjs --help
+          node sybilclaw.mjs status --json --timeout 1
           pnpm test:build:singleton
 
   checks-node-core-test-nondist-shard:
