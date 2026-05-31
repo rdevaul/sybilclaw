@@ -4,6 +4,33 @@ SybilClaw-specific changes are listed here. For the full upstream OpenClaw chang
 
 ---
 
+## SybilClaw Tier 1 — Security Backports (May 2026)
+
+Per-commit cherry-picks of upstream OpenClaw security fixes that affect the
+SybilClaw `2026.5.12` baseline, resolved at hunk level per
+[`docs/sybilclaw/stability-policy.md`](./docs/sybilclaw/stability-policy.md).
+Upstream attribution is preserved in each commit via `git cherry-pick -x`.
+
+### Landed
+
+- **GHSA-2hfg-4fh4-qp7f** (CVSS 7.7) — Browser `act` interactions bypassed
+  private-network navigation checks. Enforce navigation/SSRF guards for `act`
+  interactions. Backported upstream `3d93174c43` (#81070). Bloat ratio 1.0.
+
+### Deferred (need follow-up — see `docs/sybilclaw/BATCH-A-EXECUTION-2026-05-30.md`)
+
+The remaining eight high-severity fixes in this batch could not be cherry-picked
+at hunk level against the `2026.5.12` baseline: each presupposes intervening
+upstream refactors (or collides with a SybilClaw hand-divergence) that would
+require taking whole upstream files or backporting prerequisite commits —
+exactly the bloat failure mode the stability policy forbids. They are tracked
+for re-implementation rather than force-resolved:
+GHSA-mhq8-78pj-5j79, GHSA-3c6j-hq33-3jv4, GHSA-mgq6-vr84-7m2j,
+GHSA-xww8-gqvh-92x9, GHSA-qjpc-qf9m-xwmr, GHSA-6fvr-66p3-3qj4,
+GHSA-hw9r-h9mr-4jff, GHSA-q99w-vh6v-q3v7.
+
+---
+
 ## 2026.4.1 — SybilClaw (first release)
 
 ### New (SybilClaw-specific)

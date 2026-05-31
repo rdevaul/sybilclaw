@@ -650,6 +650,7 @@ export async function selectOptionViaPlaywright(opts: {
   selector?: string;
   values: string[];
   timeoutMs?: number;
+  ssrfPolicy?: SsrFPolicy;
 }): Promise<void> {
   const resolved = requireRefOrSelector(opts.ref, opts.selector);
   if (!opts.values?.length) {
@@ -660,9 +661,19 @@ export async function selectOptionViaPlaywright(opts: {
   const locator = resolved.ref
     ? refLocator(page, requireRef(resolved.ref))
     : page.locator(resolved.selector!);
+  const previousUrl = page.url();
   try {
-    await locator.selectOption(opts.values, {
-      timeout: resolveInteractionTimeoutMs(opts.timeoutMs),
+    await assertInteractionNavigationCompletedSafely({
+      action: async () => {
+        await locator.selectOption(opts.values, {
+          timeout: resolveInteractionTimeoutMs(opts.timeoutMs),
+        });
+      },
+      cdpUrl: opts.cdpUrl,
+      page,
+      previousUrl,
+      ssrfPolicy: opts.ssrfPolicy,
+      targetId: opts.targetId,
     });
   } catch (err) {
     throw toAIFriendlyError(err, label);
@@ -717,17 +728,29 @@ export async function typeViaPlaywright(opts: {
     : page.locator(resolved.selector!);
   const timeout = resolveInteractionTimeoutMs(opts.timeoutMs);
   try {
+    const previousUrl = page.url();
     if (opts.slowly) {
-      await locator.click({ timeout });
-      await locator.type(text, { timeout, delay: 75 });
-    } else {
-      await locator.fill(text, { timeout });
-    }
-    if (opts.submit) {
-      const previousUrl = page.url();
       await assertInteractionNavigationCompletedSafely({
         action: async () => {
-          await locator.press("Enter", { timeout });
+          await locator.click({ timeout });
+          await locator.type(text, { timeout, delay: 75 });
+          if (opts.submit) {
+            await locator.press("Enter", { timeout });
+          }
+        },
+        cdpUrl: opts.cdpUrl,
+        page,
+        previousUrl,
+        ssrfPolicy: opts.ssrfPolicy,
+        targetId: opts.targetId,
+      });
+    } else {
+      await assertInteractionNavigationCompletedSafely({
+        action: async () => {
+          await locator.fill(text, { timeout });
+          if (opts.submit) {
+            await locator.press("Enter", { timeout });
+          }
         },
         cdpUrl: opts.cdpUrl,
         page,
@@ -746,6 +769,7 @@ export async function fillFormViaPlaywright(opts: {
   targetId?: string;
   fields: BrowserFormField[];
   timeoutMs?: number;
+  ssrfPolicy?: SsrFPolicy;
 }): Promise<void> {
   const page = await getRestoredPageForTarget(opts);
   const timeout = resolveInteractionTimeoutMs(opts.timeoutMs);
@@ -767,14 +791,34 @@ export async function fillFormViaPlaywright(opts: {
       const checked =
         rawValue === true || rawValue === 1 || rawValue === "1" || rawValue === "true";
       try {
-        await locator.setChecked(checked, { timeout });
+        const previousUrl = page.url();
+        await assertInteractionNavigationCompletedSafely({
+          action: async () => {
+            await locator.setChecked(checked, { timeout });
+          },
+          cdpUrl: opts.cdpUrl,
+          page,
+          previousUrl,
+          ssrfPolicy: opts.ssrfPolicy,
+          targetId: opts.targetId,
+        });
       } catch (err) {
         throw toAIFriendlyError(err, ref);
       }
       continue;
     }
     try {
-      await locator.fill(value, { timeout });
+      const previousUrl = page.url();
+      await assertInteractionNavigationCompletedSafely({
+        action: async () => {
+          await locator.fill(value, { timeout });
+        },
+        cdpUrl: opts.cdpUrl,
+        page,
+        previousUrl,
+        ssrfPolicy: opts.ssrfPolicy,
+        targetId: opts.targetId,
+      });
     } catch (err) {
       throw toAIFriendlyError(err, ref);
     }
@@ -821,9 +865,19 @@ export async function evaluateViaPlaywright(opts: {
   }
 
   try {
+    const previousUrl = page.url();
+    if (opts.ssrfPolicy) {
+      await assertPageNavigationCompletedSafely({
+        cdpUrl: opts.cdpUrl,
+        page,
+        response: null,
+        ssrfPolicy: opts.ssrfPolicy,
+        targetId: opts.targetId,
+      });
+    }
+
     if (opts.ref) {
       const locator = refLocator(page, opts.ref);
-      const previousUrl = page.url();
       // eslint-disable-next-line @typescript-eslint/no-implied-eval -- required for browser-context eval
       const elementEvaluator = new Function(
         "el",
@@ -863,7 +917,6 @@ export async function evaluateViaPlaywright(opts: {
       return result;
     }
 
-    const previousUrl = page.url();
     // eslint-disable-next-line @typescript-eslint/no-implied-eval -- required for browser-context eval
     const browserEvaluator = new Function(
       "args",
@@ -1300,6 +1353,7 @@ async function executeSingleAction(
         selector: action.selector,
         values: action.values,
         timeoutMs: action.timeoutMs,
+        ssrfPolicy,
       });
       break;
     case "fill":
@@ -1308,6 +1362,7 @@ async function executeSingleAction(
         targetId: effectiveTargetId,
         fields: action.fields,
         timeoutMs: action.timeoutMs,
+        ssrfPolicy,
       });
       break;
     case "resize":
