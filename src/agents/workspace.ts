@@ -630,7 +630,11 @@ export async function ensureAgentWorkspace(params?: {
   };
 }
 
-export async function loadWorkspaceBootstrapFiles(dir: string): Promise<WorkspaceBootstrapFile[]> {
+export async function loadWorkspaceBootstrapFiles(
+  dir: string,
+  agentMemoryFiles?: string | string[],
+  agentMemoryAllowedPaths?: string[],
+): Promise<WorkspaceBootstrapFile[]> {
   const resolvedDir = resolveUserPath(dir);
 
   const entries: Array<{
@@ -665,11 +669,39 @@ export async function loadWorkspaceBootstrapFiles(dir: string): Promise<Workspac
       name: DEFAULT_BOOTSTRAP_FILENAME,
       filePath: path.join(resolvedDir, DEFAULT_BOOTSTRAP_FILENAME),
     },
-    {
+  ];
+
+  // Normalize memoryFile to array; undefined means fall back to default MEMORY.md resolution
+  const memoryFileList = agentMemoryFiles
+    ? Array.isArray(agentMemoryFiles)
+      ? agentMemoryFiles
+      : [agentMemoryFiles]
+    : null;
+
+  if (memoryFileList && memoryFileList.length > 0) {
+    for (const memFile of memoryFileList) {
+      // Apply path filtering if memoryAllowedPaths is configured
+      if (agentMemoryAllowedPaths && agentMemoryAllowedPaths.length > 0) {
+        const isAllowed = agentMemoryAllowedPaths.some((prefix) => memFile.startsWith(prefix));
+        if (!isAllowed) {
+          continue;
+        }
+      }
+      const resolvedMemoryPath = path.join(resolvedDir, memFile);
+      const baseName = path.basename(resolvedMemoryPath);
+      if (VALID_BOOTSTRAP_NAMES.has(baseName)) {
+        entries.push({
+          name: baseName as WorkspaceBootstrapFileName,
+          filePath: resolvedMemoryPath,
+        });
+      }
+    }
+  } else {
+    entries.push({
       name: DEFAULT_MEMORY_FILENAME,
       filePath: path.join(resolvedDir, DEFAULT_MEMORY_FILENAME),
-    },
-  ];
+    });
+  }
 
   const result: WorkspaceBootstrapFile[] = [];
   for (const entry of entries) {
