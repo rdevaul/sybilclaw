@@ -2872,7 +2872,26 @@ export async function runEmbeddedAttempt(
             },
           }
         : {};
-      if (activeContextEngine?.info.ownsCompaction === true) {
+      // SybilClaw: resolve compaction ownership per-attempt. Engines may override
+      // the static `info.ownsCompaction` on a per-session basis (e.g. contextgraph
+      // toggles based on a per-user `/graph on` flag). Falls back to the static
+      // info value when the override is not provided.
+      let attemptOwnsCompaction = activeContextEngine?.info?.ownsCompaction === true;
+      if (activeContextEngine?.ownsCompactionForSession) {
+        try {
+          const result = await activeContextEngine.ownsCompactionForSession({
+            sessionId: params.sessionId,
+            sessionKey: params.sessionKey,
+          });
+          attemptOwnsCompaction = result === true;
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[context-engine] ownsCompactionForSession failed; falling back to info.ownsCompaction: ${String(err)}`,
+          );
+        }
+      }
+      if (attemptOwnsCompaction && activeContextEngine) {
         const removeContextEngineLoopHook = installContextEngineLoopHook({
           agent: activeSession.agent,
           contextEngine: activeContextEngine,
