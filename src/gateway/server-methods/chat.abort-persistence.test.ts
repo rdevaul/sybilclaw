@@ -190,7 +190,7 @@ describe("chat abort transcript persistence", () => {
       ]),
       broadcast: vi.fn(),
       nodeSendToSession: vi.fn(),
-      logGateway: { warn: vi.fn() },
+      logGateway: { warn: vi.fn(), debug: vi.fn() },
     });
 
     await invokeChatAbortHandler({
