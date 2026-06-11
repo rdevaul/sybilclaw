@@ -32,14 +32,14 @@ function resolveUserPathWithHome(input: string, home?: string): string {
 }
 
 export function resolveGatewayStateDir(env: Record<string, string | undefined>): string {
-  const override = normalizeOptionalString(env.OPENCLAW_STATE_DIR);
+  const override = normalizeOptionalString(env.SYBILCLAW_STATE_DIR) || normalizeOptionalString(env.OPENCLAW_STATE_DIR);
   if (override) {
     const home = override.startsWith("~") ? resolveHomeDir(env) : undefined;
     return resolveUserPathWithHome(override, home);
   }
   const home = resolveHomeDir(env);
-  const suffix = resolveGatewayProfileSuffix(env.OPENCLAW_PROFILE);
-  return path.join(home, `.openclaw${suffix}`);
+  const suffix = resolveGatewayProfileSuffix(env.SYBILCLAW_PROFILE || env.OPENCLAW_PROFILE);
+  return path.join(home, `.sybilclaw${suffix}`);
 }
 
 export function resolveGatewayTaskScriptPath(env: Record<string, string | undefined>): string {

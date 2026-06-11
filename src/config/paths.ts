@@ -5,29 +5,30 @@ import { resolveHomeRelativePath, resolveRequiredHomeDir } from "../infra/home-d
 import type { OpenClawConfig } from "./types.js";
 
 /**
- * Nix mode detection: When OPENCLAW_NIX_MODE=1, the gateway is running under Nix.
+ * Nix mode detection: When SYBILCLAW_NIX_MODE=1 (or OPENCLAW_NIX_MODE=1), the gateway is running under Nix.
  * In this mode:
  * - No auto-install flows should be attempted
  * - Missing dependencies should produce actionable Nix-specific error messages
  * - Config is managed externally (read-only from Nix perspective)
+ * Falls back to OPENCLAW_NIX_MODE for backward compatibility.
  */
 export function resolveIsNixMode(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.OPENCLAW_NIX_MODE === "1";
+  return env.SYBILCLAW_NIX_MODE === "1" || env.OPENCLAW_NIX_MODE === "1";
 }
 
 export const isNixMode = resolveIsNixMode();
 
-// Support the remaining legacy pre-rebrand state dir.
-const LEGACY_STATE_DIRNAMES = [".clawdbot"] as const;
-const NEW_STATE_DIRNAME = ".openclaw";
-const CONFIG_FILENAME = "openclaw.json";
-const LEGACY_CONFIG_FILENAMES = ["clawdbot.json"] as const;
+// Support legacy pre-rebrand state dirs.
+const LEGACY_STATE_DIRNAMES = [".openclaw", ".clawdbot"] as const;
+const NEW_STATE_DIRNAME = ".sybilclaw";
+const CONFIG_FILENAME = "sybilclaw.json";
+const LEGACY_CONFIG_FILENAMES = ["openclaw.json", "clawdbot.json"] as const;
 
 function resolveDefaultHomeDir(): string {
   return resolveRequiredHomeDir(process.env, os.homedir);
 }
 
-/** Build a homedir thunk that respects OPENCLAW_HOME for the given env. */
+/** Build a homedir thunk that respects SYBILCLAW_HOME (or OPENCLAW_HOME fallback) for the given env. */
 function envHomedir(env: NodeJS.ProcessEnv): () => string {
   return () => resolveRequiredHomeDir(env, os.homedir);
 }
@@ -54,20 +55,20 @@ export function resolveNewStateDir(homedir: () => string = resolveDefaultHomeDir
 
 /**
  * State directory for mutable data (sessions, logs, caches).
- * Can be overridden via OPENCLAW_STATE_DIR.
- * Default: ~/.openclaw
+ * Can be overridden via SYBILCLAW_STATE_DIR (falls back to OPENCLAW_STATE_DIR).
+ * Default: ~/.sybilclaw
  */
 export function resolveStateDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = envHomedir(env),
 ): string {
   const effectiveHomedir = () => resolveRequiredHomeDir(env, homedir);
-  const override = env.OPENCLAW_STATE_DIR?.trim();
+  const override = env.SYBILCLAW_STATE_DIR?.trim() || env.OPENCLAW_STATE_DIR?.trim();
   if (override) {
     return resolveUserPath(override, env, effectiveHomedir);
   }
   const newDir = newStateDir(effectiveHomedir);
-  if (env.OPENCLAW_TEST_FAST === "1") {
+  if (env.SYBILCLAW_TEST_FAST === "1" || env.OPENCLAW_TEST_FAST === "1") {
     return newDir;
   }
   const legacyDirs = legacyStateDirs(effectiveHomedir);
@@ -90,9 +91,11 @@ export function resolveStateDir(
 
 export function normalizeStateDirEnv(env: NodeJS.ProcessEnv = process.env): void {
   const effectiveHomedir = () => resolveRequiredHomeDir(env, envHomedir(env));
-  const openclawOverride = env.OPENCLAW_STATE_DIR?.trim();
-  if (openclawOverride) {
-    env.OPENCLAW_STATE_DIR = resolveUserPath(openclawOverride, env, effectiveHomedir);
+  const sybilclawOverride = env.SYBILCLAW_STATE_DIR?.trim() || env.OPENCLAW_STATE_DIR?.trim();
+  if (sybilclawOverride) {
+    env.SYBILCLAW_STATE_DIR = resolveUserPath(sybilclawOverride, env, effectiveHomedir);
+    // Also set OPENCLAW_STATE_DIR for backward compatibility with plugins/extensions
+    env.OPENCLAW_STATE_DIR = env.SYBILCLAW_STATE_DIR;
   }
 }
 
@@ -148,14 +151,14 @@ export const STATE_DIR = resolveStateDir();
 
 /**
  * Config file path (JSON or JSON5).
- * Can be overridden via OPENCLAW_CONFIG_PATH.
- * Default: ~/.openclaw/openclaw.json (or $OPENCLAW_STATE_DIR/openclaw.json)
+ * Can be overridden via SYBILCLAW_CONFIG_PATH (falls back to OPENCLAW_CONFIG_PATH).
+ * Default: ~/.sybilclaw/sybilclaw.json (or $SYBILCLAW_STATE_DIR/sybilclaw.json)
  */
 export function resolveCanonicalConfigPath(
   env: NodeJS.ProcessEnv = process.env,
   stateDir: string = resolveStateDir(env, envHomedir(env)),
 ): string {
-  const override = env.OPENCLAW_CONFIG_PATH?.trim();
+  const override = env.SYBILCLAW_CONFIG_PATH?.trim() || env.OPENCLAW_CONFIG_PATH?.trim();
   if (override) {
     return resolveUserPath(override, env, envHomedir(env));
   }
@@ -170,7 +173,7 @@ export function resolveConfigPathCandidate(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = envHomedir(env),
 ): string {
-  if (env.OPENCLAW_TEST_FAST === "1") {
+  if (env.SYBILCLAW_TEST_FAST === "1" || env.OPENCLAW_TEST_FAST === "1") {
     return resolveCanonicalConfigPath(env, resolveStateDir(env, homedir));
   }
   const candidates = resolveDefaultConfigCandidates(env, homedir);
@@ -195,14 +198,14 @@ export function resolveConfigPath(
   stateDir: string = resolveStateDir(env, envHomedir(env)),
   homedir: () => string = envHomedir(env),
 ): string {
-  const override = env.OPENCLAW_CONFIG_PATH?.trim();
+  const override = env.SYBILCLAW_CONFIG_PATH?.trim() || env.OPENCLAW_CONFIG_PATH?.trim();
   if (override) {
     return resolveUserPath(override, env, homedir);
   }
-  if (env.OPENCLAW_TEST_FAST === "1") {
+  if (env.SYBILCLAW_TEST_FAST === "1" || env.OPENCLAW_TEST_FAST === "1") {
     return path.join(stateDir, CONFIG_FILENAME);
   }
-  const stateOverride = env.OPENCLAW_STATE_DIR?.trim();
+  const stateOverride = env.SYBILCLAW_STATE_DIR?.trim() || env.OPENCLAW_STATE_DIR?.trim();
   const candidates = [
     path.join(stateDir, CONFIG_FILENAME),
     ...LEGACY_CONFIG_FILENAMES.map((name) => path.join(stateDir, name)),
@@ -238,15 +241,15 @@ export function resolveDefaultConfigCandidates(
   homedir: () => string = envHomedir(env),
 ): string[] {
   const effectiveHomedir = () => resolveRequiredHomeDir(env, homedir);
-  const explicit = env.OPENCLAW_CONFIG_PATH?.trim();
+  const explicit = env.SYBILCLAW_CONFIG_PATH?.trim() || env.OPENCLAW_CONFIG_PATH?.trim();
   if (explicit) {
     return [resolveUserPath(explicit, env, effectiveHomedir)];
   }
 
   const candidates: string[] = [];
-  const openclawStateDir = env.OPENCLAW_STATE_DIR?.trim();
-  if (openclawStateDir) {
-    const resolved = resolveUserPath(openclawStateDir, env, effectiveHomedir);
+  const sybilclawStateDir = env.SYBILCLAW_STATE_DIR?.trim() || env.OPENCLAW_STATE_DIR?.trim();
+  if (sybilclawStateDir) {
+    const resolved = resolveUserPath(sybilclawStateDir, env, effectiveHomedir);
     candidates.push(path.join(resolved, CONFIG_FILENAME));
     candidates.push(...LEGACY_CONFIG_FILENAMES.map((name) => path.join(resolved, name)));
   }
