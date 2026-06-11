@@ -2449,6 +2449,16 @@ export const chatHandlers: GatewayRequestHandlers = {
     );
     const requestedSessionId = normalizeOptionalText(p.sessionId);
     const backingSessionId = entry?.sessionId ?? requestedSessionId;
+    // SybilClaw: debug log for session routing — helps diagnose primer-leak / wrong-session routing
+    if (rawSessionKey !== sessionKey) {
+      context.logGateway.debug(
+        `chat.send: received sessionKey=${rawSessionKey} resolved to=${sessionKey} (canonicalized)`,
+      );
+    } else {
+      context.logGateway.debug(
+        `chat.send: received sessionKey=${rawSessionKey} resolved to=${sessionKey}`,
+      );
+    }
     const deletedAgentId = resolveDeletedAgentIdFromSessionKey(cfg, sessionKey);
     if (deletedAgentId !== null) {
       respond(
@@ -2644,11 +2654,13 @@ export const chatHandlers: GatewayRequestHandlers = {
     }
 
     try {
+      // SybilClaw: use canonical sessionKey for abort controller registration
+      // to ensure consistent key matching across routing, tool events, and abort paths.
       const activeRunAbort = registerChatAbortController({
         chatAbortControllers: context.chatAbortControllers,
         runId: clientRunId,
         sessionId: backingSessionId ?? clientRunId,
-        sessionKey: rawSessionKey,
+        sessionKey,
         timeoutMs,
         now,
         ownerConnId: normalizeOptionalText(client?.connId),
@@ -3006,7 +3018,7 @@ export const chatHandlers: GatewayRequestHandlers = {
                   // late-joining clients (e.g. page refresh mid-response) receive
                   // in-progress tool events without leaking cross-session data.
                   for (const [activeRunId, active] of context.chatAbortControllers) {
-                    if (activeRunId !== runId && active.sessionKey === p.sessionKey) {
+                    if (activeRunId !== runId && active.sessionKey === sessionKey) {
                       context.registerToolEventRecipient(activeRunId, connId);
                     }
                   }
