@@ -10,6 +10,11 @@ const HOME_ENV_KEYS = [
   "HOMEDRIVE",
   "HOMEPATH",
   "OPENCLAW_STATE_DIR",
+  // SybilClaw: the rebranded state-dir var takes precedence over OPENCLAW_STATE_DIR
+  // in resolveStateDir/resolveConfigDir. It must be captured + reset here so a value
+  // leaked from a prior test (e.g. via normalizeStateDirEnv) cannot override the
+  // temp home's OPENCLAW_STATE_DIR override.
+  "SYBILCLAW_STATE_DIR",
 ] as const;
 
 export type TempHomeEnv = {
@@ -52,6 +57,9 @@ export async function createTempHomeEnv(prefix: string): Promise<TempHomeEnv> {
   process.env.HOME = home;
   process.env.USERPROFILE = home;
   process.env.OPENCLAW_STATE_DIR = path.join(home, ".openclaw");
+  // Clear the higher-precedence SybilClaw var so the temp home's OPENCLAW_STATE_DIR
+  // override is authoritative (prevents cross-test env leakage).
+  delete process.env.SYBILCLAW_STATE_DIR;
 
   if (process.platform === "win32") {
     const match = home.match(/^([A-Za-z]:)(.*)$/);

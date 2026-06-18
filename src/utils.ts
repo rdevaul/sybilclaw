@@ -120,19 +120,27 @@ export function resolveConfigDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string {
-  const override = env.OPENCLAW_STATE_DIR?.trim();
+  // SybilClaw: honor SYBILCLAW_* env vars first, falling back to OPENCLAW_* for
+  // backward compatibility. Keep this in sync with resolveStateDir in config/paths.ts.
+  const override = env.SYBILCLAW_STATE_DIR?.trim() || env.OPENCLAW_STATE_DIR?.trim();
   if (override) {
     return resolveUserPath(override, env, homedir);
   }
-  const configPath = env.OPENCLAW_CONFIG_PATH?.trim();
+  const configPath = env.SYBILCLAW_CONFIG_PATH?.trim() || env.OPENCLAW_CONFIG_PATH?.trim();
   if (configPath) {
     return path.dirname(resolveUserPath(configPath, env, homedir));
   }
-  const newDir = path.join(resolveRequiredHomeDir(env, homedir), ".openclaw");
+  const home = resolveRequiredHomeDir(env, homedir);
+  const newDir = path.join(home, ".sybilclaw");
+  // Legacy .openclaw dir is honored when it already exists and the new dir does not,
+  // mirroring resolveStateDir's legacy-fallback behavior.
+  const legacyDir = path.join(home, ".openclaw");
   try {
-    const hasNew = fs.existsSync(newDir);
-    if (hasNew) {
+    if (fs.existsSync(newDir)) {
       return newDir;
+    }
+    if (fs.existsSync(legacyDir)) {
+      return legacyDir;
     }
   } catch {
     // best-effort

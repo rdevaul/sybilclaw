@@ -2449,13 +2449,14 @@ export const chatHandlers: GatewayRequestHandlers = {
     );
     const requestedSessionId = normalizeOptionalText(p.sessionId);
     const backingSessionId = entry?.sessionId ?? requestedSessionId;
-    // SybilClaw: debug log for session routing — helps diagnose primer-leak / wrong-session routing
+    // SybilClaw: debug log for session routing — helps diagnose primer-leak / wrong-session routing.
+    // logGateway is optional on some context paths (and in test mocks), so guard the call.
     if (rawSessionKey !== sessionKey) {
-      context.logGateway.debug(
+      context.logGateway?.debug?.(
         `chat.send: received sessionKey=${rawSessionKey} resolved to=${sessionKey} (canonicalized)`,
       );
     } else {
-      context.logGateway.debug(
+      context.logGateway?.debug?.(
         `chat.send: received sessionKey=${rawSessionKey} resolved to=${sessionKey}`,
       );
     }
