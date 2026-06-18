@@ -163,7 +163,14 @@ export function resolveCompatibilityHostVersion(
   });
 }
 
-// Single source of truth for the current OpenClaw version.
+// The upstream OpenClaw baseline this SybilClaw release was rebased from.
+// Surfaced on the `--version` lineage line and any plugin-host messaging
+// that wants to be honest about which upstream OpenClaw features are
+// actually present. This is NOT the SybilClaw version (see VERSION below);
+// it is the upstream feature surface plugin authors target.
+export const OPENCLAW_BASE_VERSION = "2026.6.1";
+
+// Single source of truth for the current SybilClaw version.
 // - Embedded/bundled builds: injected define or env var.
 // - Dev/npm builds: package.json.
 export const VERSION = resolveBinaryVersion({

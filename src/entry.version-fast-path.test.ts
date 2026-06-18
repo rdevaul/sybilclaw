@@ -39,7 +39,9 @@ describe("entry root version fast path", () => {
       }),
     ).toBe(true);
     await flushVersionFastPath();
-    expect(output).toHaveBeenCalledWith("OpenClaw 9.9.9-test (abc1234)");
+    expect(output).toHaveBeenCalledWith(
+      "SybilClaw 9.9.9-test (abc1234)\nbased on OpenClaw 2026.6.1",
+    );
     expect(exit).toHaveBeenCalledWith(0);
 
     output.mockClear();
@@ -57,7 +59,9 @@ describe("entry root version fast path", () => {
       }),
     ).toBe(true);
     await flushVersionFastPath();
-    expect(output).toHaveBeenCalledWith("OpenClaw 9.9.9-test");
+    expect(output).toHaveBeenCalledWith(
+      "SybilClaw 9.9.9-test\nbased on OpenClaw 2026.6.1",
+    );
     expect(exit).toHaveBeenCalledWith(0);
 
     output.mockClear();

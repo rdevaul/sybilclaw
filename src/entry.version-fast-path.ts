@@ -1,5 +1,6 @@
 import { isRootVersionInvocation } from "./cli/argv.js";
 import { resolveCliContainerTarget } from "./cli/container-target.js";
+import { OPENCLAW_BASE_VERSION } from "./version.js";
 
 export function tryHandleRootVersionFastPath(
   argv: string[],
@@ -45,7 +46,16 @@ export function tryHandleRootVersionFastPath(
   resolveVersion()
     .then(({ VERSION, resolveCommitHash }) => {
       const commit = resolveCommitHash({ moduleUrl: deps.moduleUrl ?? import.meta.url });
-      output(commit ? `OpenClaw ${VERSION} (${commit})` : `OpenClaw ${VERSION}`);
+      const primary = commit ? `SybilClaw ${VERSION} (${commit})` : `SybilClaw ${VERSION}`;
+      // Print fork lineage on a second line so scripts that grep the
+      // legacy upstream name ("OpenClaw") still match `<binary> --version`
+      // output. Standard parsers that take the first line / first two
+      // whitespace-separated tokens still see `SybilClaw <version>`.
+      // The OpenClaw version reported is the upstream baseline this fork
+      // was rebased from (OPENCLAW_BASE_VERSION), NOT our SybilClaw
+      // version, so plugin authors can match the actual upstream feature
+      // surface they're targeting.
+      output(`${primary}\nbased on OpenClaw ${OPENCLAW_BASE_VERSION}`);
       exit(0);
     })
     .catch(onError);
