@@ -3,6 +3,17 @@ import type { ConfigFileSnapshot, ModelDefinitionConfig, OpenClawConfig } from "
 import type { PluginMetadataSnapshot } from "../plugins/plugin-metadata-snapshot.js";
 import { buildTestConfigSnapshot } from "./test-helpers.config-snapshots.js";
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// The doctor-repair hint is profile-aware: under a named profile the runtime
+// emits `Run "openclaw --profile <name> doctor --fix"`, otherwise the bare
+// `Run "openclaw doctor --fix"`. These suites run under whatever profile the
+// gateway-server vitest project inherits (e.g. "Jarvis"), so assert against a
+// pattern that tolerates the optional `--profile <name>` segment.
+const DOCTOR_FIX_HINT_RE = /Run "openclaw(?: --profile \S+)? doctor --fix" to repair, then retry\./;
+
 const applyPluginAutoEnable = vi.hoisted(() =>
   vi.fn((params: { config: OpenClawConfig }) => ({
     config: params.config,
@@ -455,7 +466,9 @@ describe("gateway startup config validation", () => {
         log: { info: vi.fn(), warn: vi.fn() },
       }),
     ).rejects.toThrow(
-      `Invalid config at ${configPath}.\ngateway.mode: Expected 'local' or 'remote'\nRun "openclaw doctor --fix" to repair, then retry.\nIf startup is still blocked, inspect the adjacent .bak backup before restoring it manually.`,
+      new RegExp(
+        `Invalid config at ${escapeRegExp(configPath)}\\.\\ngateway\\.mode: Expected 'local' or 'remote'\\n${DOCTOR_FIX_HINT_RE.source}\\nIf startup is still blocked, inspect the adjacent \\.bak backup before restoring it manually\\.`,
+      ),
     );
   });
 
@@ -548,7 +561,7 @@ describe("gateway startup config validation", () => {
         minimalTestGateway: true,
         log: { info: vi.fn(), warn: vi.fn() },
       }),
-    ).rejects.toThrow('Run "openclaw doctor --fix" to repair, then retry.');
+    ).rejects.toThrow(DOCTOR_FIX_HINT_RE);
   });
 
   it("rejects legacy config entries in Nix mode", async () => {
