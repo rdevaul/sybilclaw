@@ -12,6 +12,11 @@ on:
         required: true
         default: false
         type: boolean
+      dist_tag:
+        description: npm dist-tag to publish under (use "rc" for release candidates, "latest" for final)
+        required: true
+        default: rc
+        type: string
       preflight_run_id:
         description: Existing preflight workflow run id to promote without rebuilding
         required: false
@@ -37,11 +42,12 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          # SybilClaw uses dated release tags: vYYYY.M.D (optional -sybilclaw-N suffix
-          # retained for legacy compatibility).
-          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]{4}\.[0-9]+\.[0-9]+(-sybilclaw-[0-9]+)?$ ]]; then
+          # SybilClaw uses dated release tags: vYYYY.M.D with an optional
+          # prerelease suffix (-rc.N / -beta.N / -alpha.N) and the legacy
+          # -sybilclaw-N suffix retained for backward compatibility.
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]{4}\.[0-9]+\.[0-9]+(-(rc|beta|alpha)\.[0-9]+|-sybilclaw-[0-9]+)?$ ]]; then
             echo "Invalid release tag format: ${RELEASE_TAG}"
-            echo "Expected format: v2026.6.17"
+            echo "Expected format: v2026.6.17 or v2026.6.17-rc.1"
             exit 1
           fi
 
@@ -177,7 +183,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]{4}\.[0-9]+\.[0-9]+(-sybilclaw-[0-9]+)?$ ]]; then
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]{4}\.[0-9]+\.[0-9]+(-(rc|beta|alpha)\.[0-9]+|-sybilclaw-[0-9]+)?$ ]]; then
             echo "Invalid release tag format: ${RELEASE_TAG}"
             exit 1
           fi
@@ -250,11 +256,20 @@ jobs:
           PACKAGE_NAME=$(node -p "require('./package.json').name")
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
 
-          echo "Publishing ${PACKAGE_NAME}@${PACKAGE_VERSION}"
-          echo "Publish command: npm publish --access public --tag latest --provenance"
+          # dist-tag selection: defaults to "rc" so an accidental dispatch never
+          # clobbers the "latest" channel. Final releases must pass dist_tag=latest.
+          DIST_TAG="${{ inputs.dist_tag }}"
+          DIST_TAG="${DIST_TAG:-rc}"
+          if [[ ! "${DIST_TAG}" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid dist-tag: ${DIST_TAG}"
+            exit 1
+          fi
+
+          echo "Publishing ${PACKAGE_NAME}@${PACKAGE_VERSION} under dist-tag '${DIST_TAG}'"
+          echo "Publish command: npm publish --access public --tag ${DIST_TAG} --provenance"
 
           if [[ -n "${{ steps.publish_tarball.outputs.path }}" ]]; then
-            npm publish "${{ steps.publish_tarball.outputs.path }}" --access public --tag latest --provenance
+            npm publish "${{ steps.publish_tarball.outputs.path }}" --access public --tag "${DIST_TAG}" --provenance
           else
-            npm publish --access public --tag latest --provenance
+            npm publish --access public --tag "${DIST_TAG}" --provenance
           fi
