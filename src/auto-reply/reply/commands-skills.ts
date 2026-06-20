@@ -5,7 +5,10 @@ import {
   loadWorkspaceSkillEntries,
   type SkillEntry,
 } from "../../agents/skills.js";
-import { mutateConfigFile } from "../../config/config.js";
+import {
+  clearAgentSkillsFilter,
+  setAgentSkillsFilter,
+} from "./config-mutations.js";
 import { logVerbose } from "../../globals.js";
 import { normalizeAgentId } from "../../routing/session-key.js";
 import type { CommandHandler } from "./commands-types.js";
@@ -173,20 +176,12 @@ async function handleSkillEnable(params: {
   }
 
   const normalizedId = normalizeAgentId(agentId);
-  await mutateConfigFile({
-    mutate: (draft) => {
-      const agents = draft.agents?.list;
-      if (!Array.isArray(agents)) {
-        return;
-      }
-      const agent = agents.find((a) => normalizeAgentId(a.id) === normalizedId);
-      if (!agent) {
-        return;
-      }
-      const next = new Set(materializeEffectiveSet(effectiveFilter, allNames));
-      next.add(skillName);
-      agent.skills = Array.from(next).toSorted();
-    },
+  const next = new Set(materializeEffectiveSet(effectiveFilter, allNames));
+  next.add(skillName);
+  await setAgentSkillsFilter({
+    agentId,
+    skills: Array.from(next),
+    matchAgentId: (candidate) => normalizeAgentId(candidate) === normalizedId,
   });
 
   return `✅ Enabled skill **${skillName}** for ${agentId}`;
@@ -209,21 +204,13 @@ async function handleSkillDisable(params: {
   }
 
   const normalizedId = normalizeAgentId(agentId);
-  await mutateConfigFile({
-    mutate: (draft) => {
-      const agents = draft.agents?.list;
-      if (!Array.isArray(agents)) {
-        return;
-      }
-      const agent = agents.find((a) => normalizeAgentId(a.id) === normalizedId);
-      if (!agent) {
-        return;
-      }
-      const next = materializeEffectiveSet(effectiveFilter, allNames).filter(
-        (n) => n !== skillName,
-      );
-      agent.skills = next.toSorted();
-    },
+  const next = materializeEffectiveSet(effectiveFilter, allNames).filter(
+    (n) => n !== skillName,
+  );
+  await setAgentSkillsFilter({
+    agentId,
+    skills: next,
+    matchAgentId: (candidate) => normalizeAgentId(candidate) === normalizedId,
   });
 
   return `✅ Disabled skill **${skillName}** for ${agentId}`;
@@ -231,18 +218,9 @@ async function handleSkillDisable(params: {
 
 async function handleSkillReset(agentId: string): Promise<string> {
   const normalizedId = normalizeAgentId(agentId);
-  await mutateConfigFile({
-    mutate: (draft) => {
-      const agents = draft.agents?.list;
-      if (!Array.isArray(agents)) {
-        return;
-      }
-      const agent = agents.find((a) => normalizeAgentId(a.id) === normalizedId);
-      if (!agent) {
-        return;
-      }
-      delete agent.skills;
-    },
+  await clearAgentSkillsFilter({
+    agentId,
+    matchAgentId: (candidate) => normalizeAgentId(candidate) === normalizedId,
   });
 
   return `✅ Reset skills for **${agentId}** — now inherits agents.defaults.skills`;

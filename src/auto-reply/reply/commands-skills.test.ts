@@ -4,12 +4,14 @@ import { handleSkillsCommand } from "./commands-skills.js";
 import { buildCommandTestParams } from "./commands.test-harness.js";
 import type { HandleCommandsParams } from "./commands-types.js";
 
-const mutateConfigFileMock = vi.hoisted(() => vi.fn());
+const setAgentSkillsFilterMock = vi.hoisted(() => vi.fn());
+const clearAgentSkillsFilterMock = vi.hoisted(() => vi.fn());
 const loadWorkspaceSkillEntriesMock = vi.hoisted(() => vi.fn());
 const filterWorkspaceSkillEntriesMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../config/config.js", () => ({
-  mutateConfigFile: mutateConfigFileMock,
+vi.mock("./config-mutations.js", () => ({
+  setAgentSkillsFilter: setAgentSkillsFilterMock,
+  clearAgentSkillsFilter: clearAgentSkillsFilterMock,
 }));
 
 vi.mock("../../agents/skills.js", () => ({
@@ -31,17 +33,20 @@ function buildParams(commandBody: string, cfg: OpenClawConfig): HandleCommandsPa
 }
 
 /**
- * Apply a captured mutateConfigFile mutation against a draft config and return
- * the resulting per-agent skills array.
+ * Inspect the captured domain-helper call and return the resulting per-agent
+ * skills array. A `setAgentSkillsFilter` call yields the sorted skills it was
+ * asked to write; a `clearAgentSkillsFilter` call yields `undefined` (the
+ * agent reverts to inheriting `agents.defaults.skills`).
  */
-async function applyMutation(cfg: OpenClawConfig): Promise<string[] | undefined> {
-  expect(mutateConfigFileMock).toHaveBeenCalledTimes(1);
-  const arg = mutateConfigFileMock.mock.calls[0][0] as {
-    mutate: (draft: OpenClawConfig) => unknown;
-  };
-  const draft = structuredClone(cfg);
-  await arg.mutate(draft);
-  return draft.agents?.list?.find((a) => a.id === "main")?.skills;
+async function applyMutation(_cfg: OpenClawConfig): Promise<string[] | undefined> {
+  const setCalls = setAgentSkillsFilterMock.mock.calls.length;
+  const clearCalls = clearAgentSkillsFilterMock.mock.calls.length;
+  expect(setCalls + clearCalls).toBe(1);
+  if (clearCalls === 1) {
+    return undefined;
+  }
+  const arg = setAgentSkillsFilterMock.mock.calls[0][0] as { skills: string[] };
+  return [...arg.skills].toSorted();
 }
 
 beforeEach(() => {
@@ -49,7 +54,8 @@ beforeEach(() => {
   loadWorkspaceSkillEntriesMock.mockReturnValue(ALL_SKILL_NAMES.map(makeEntry));
   // filterWorkspaceSkillEntries is called with (entries, cfg); pass through.
   filterWorkspaceSkillEntriesMock.mockImplementation((entries: unknown) => entries);
-  mutateConfigFileMock.mockResolvedValue({});
+  setAgentSkillsFilterMock.mockResolvedValue(undefined);
+  clearAgentSkillsFilterMock.mockResolvedValue(undefined);
 });
 
 describe("handleSkillsCommand", () => {
@@ -132,7 +138,7 @@ describe("handleSkillsCommand", () => {
     const res = await handleSkillsCommand(buildParams("/skills enable alpha", cfg), true);
     expect(res?.reply?.text).toContain("Enabled skill **alpha**");
     const skills = await applyMutation(cfg);
-    expect(skills).toEqual([...ALL_SKILL_NAMES].sort());
+    expect(skills).toEqual([...ALL_SKILL_NAMES].toSorted());
   });
 
   it("rejects enabling an unknown skill without mutating config", async () => {
@@ -143,7 +149,8 @@ describe("handleSkillsCommand", () => {
 
     const res = await handleSkillsCommand(buildParams("/skills enable nope", cfg), true);
     expect(res?.reply?.text).toContain("Unknown skill");
-    expect(mutateConfigFileMock).not.toHaveBeenCalled();
+    expect(setAgentSkillsFilterMock).not.toHaveBeenCalled();
+    expect(clearAgentSkillsFilterMock).not.toHaveBeenCalled();
   });
 
   it("disable removes a skill from the agent allowlist (mutates config)", async () => {
@@ -190,6 +197,7 @@ describe("handleSkillsCommand", () => {
 
     const res = await handleSkillsCommand(buildParams("/skills wat", cfg), true);
     expect(res?.reply?.text).toContain("Usage: /skills");
-    expect(mutateConfigFileMock).not.toHaveBeenCalled();
+    expect(setAgentSkillsFilterMock).not.toHaveBeenCalled();
+    expect(clearAgentSkillsFilterMock).not.toHaveBeenCalled();
   });
 });

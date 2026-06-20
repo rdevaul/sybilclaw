@@ -136,3 +136,62 @@ export async function applyAllowlistConfigMutation(params: {
     },
   });
 }
+
+/**
+ * Set an agent's `skills` array (the per-agent skill filter) by id.
+ * Used by the `/skills enable` and `/skills disable` commands. The caller
+ * computes the resulting skill list; this helper only applies it through the
+ * approved domain config mutation seam.
+ */
+export async function setAgentSkillsFilter(params: {
+  agentId: string;
+  skills: string[];
+  matchAgentId: (candidate: string | undefined) => boolean;
+}): Promise<void> {
+  await transformConfigFileWithRetry({
+    base: "source",
+    afterWrite: { mode: "auto" },
+    transform: (currentConfig) => {
+      const next = structuredClone(currentConfig) as Record<string, unknown>;
+      const agents = (next as { agents?: { list?: Array<{ id?: string; skills?: string[] }> } })
+        .agents?.list;
+      if (!Array.isArray(agents)) {
+        return { nextConfig: currentConfig };
+      }
+      const agent = agents.find((a) => params.matchAgentId(a.id));
+      if (!agent) {
+        return { nextConfig: currentConfig };
+      }
+      agent.skills = [...params.skills].toSorted();
+      return { nextConfig: assertValidConfig(next, "update agent skills").config };
+    },
+  });
+}
+
+/**
+ * Clear an agent's `skills` array so it inherits `agents.defaults.skills`.
+ * Used by the `/skills reset` command.
+ */
+export async function clearAgentSkillsFilter(params: {
+  agentId: string;
+  matchAgentId: (candidate: string | undefined) => boolean;
+}): Promise<void> {
+  await transformConfigFileWithRetry({
+    base: "source",
+    afterWrite: { mode: "auto" },
+    transform: (currentConfig) => {
+      const next = structuredClone(currentConfig) as Record<string, unknown>;
+      const agents = (next as { agents?: { list?: Array<{ id?: string; skills?: string[] }> } })
+        .agents?.list;
+      if (!Array.isArray(agents)) {
+        return { nextConfig: currentConfig };
+      }
+      const agent = agents.find((a) => params.matchAgentId(a.id));
+      if (!agent || agent.skills === undefined) {
+        return { nextConfig: currentConfig };
+      }
+      delete agent.skills;
+      return { nextConfig: assertValidConfig(next, "reset agent skills").config };
+    },
+  });
+}

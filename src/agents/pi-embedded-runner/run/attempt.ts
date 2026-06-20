@@ -2883,9 +2883,8 @@ export async function runEmbeddedAttempt(
             sessionId: params.sessionId,
             sessionKey: params.sessionKey,
           });
-          attemptOwnsCompaction = result === true;
+          attemptOwnsCompaction = result;
         } catch (err) {
-          // eslint-disable-next-line no-console
           console.warn(
             `[context-engine] ownsCompactionForSession failed; falling back to info.ownsCompaction: ${String(err)}`,
           );
