@@ -120,7 +120,22 @@ async function writeDistInventory(): Promise<void> {
   await writePackageDistInventory(process.cwd());
 }
 
+function isPreparedMode(): boolean {
+  const value = process.env.OPENCLAW_PREPACK_PREPARED;
+  return value === "1" || value === "true";
+}
+
 async function main(): Promise<void> {
+  // When OPENCLAW_PREPACK_PREPARED is set, the caller (e.g. the release
+  // workflow) has already produced the build + Control UI bundle. In that
+  // mode we must NOT rebuild — doing so re-emits build logs to stdout, which
+  // corrupts `npm pack --json` output. We only validate the prepared
+  // artifacts and refresh the dist inventory.
+  if (isPreparedMode()) {
+    ensurePreparedArtifacts();
+    await writeDistInventory();
+    return;
+  }
   runPnpm(["build"]);
   runPnpm(["ui:build"]);
   ensurePreparedArtifacts();
