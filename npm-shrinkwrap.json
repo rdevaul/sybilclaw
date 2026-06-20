@@ -1,12 +1,12 @@
 {
-  "name": "openclaw",
-  "version": "2026.5.27",
+  "name": "sybilclaw",
+  "version": "2026.6.17-rc.1",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
-      "name": "openclaw",
-      "version": "2026.5.27",
+      "name": "sybilclaw",
+      "version": "2026.6.17-rc.1",
       "hasInstallScript": true,
       "license": "MIT",
       "dependencies": {
@@ -62,7 +62,8 @@
         "zod": "4.4.3"
       },
       "bin": {
-        "openclaw": "openclaw.mjs"
+        "openclaw": "openclaw.mjs",
+        "sybilclaw": "sybilclaw.mjs"
       },
       "engines": {
         "node": ">=22.19.0"
