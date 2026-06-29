@@ -1,6 +1,6 @@
 {
   "name": "sybilclaw",
-  "version": "2026.6.17-rc.1",
+  "version": "2026.6.17-rc.2",
   "description": "SybilClaw — Multi-user AI gateway with per-agent identity, memory isolation, and extensible messaging integrations",
   "keywords": ["sybilclaw", "openclaw", "multi-user", "ai-gateway"],
   "homepage": "https://github.com/rdevaul/sybilclaw#readme",
