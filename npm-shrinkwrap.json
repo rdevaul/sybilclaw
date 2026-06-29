@@ -1,12 +1,12 @@
 {
   "name": "sybilclaw",
-  "version": "2026.6.17-rc.1",
+  "version": "2026.6.17-rc.2",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "sybilclaw",
-      "version": "2026.6.17-rc.1",
+      "version": "2026.6.17-rc.2",
       "hasInstallScript": true,
       "license": "MIT",
       "dependencies": {
