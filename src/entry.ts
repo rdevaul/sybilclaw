@@ -21,6 +21,13 @@ import { installProcessWarningFilter } from "./infra/warning-filter.js";
 const ENTRY_WRAPPER_PAIRS = [
   { wrapperBasename: "openclaw.mjs", entryBasename: "entry.js" },
   { wrapperBasename: "openclaw.js", entryBasename: "entry.js" },
+  // SybilClaw ships its own primary bin (`sybilclaw`) whose wrapper is
+  // sybilclaw.mjs/.js. Without these pairs, launching via the `sybilclaw`
+  // binary makes isMainModule() return false and the entire entry block
+  // (version fast-path, env normalization, respawn supervision, CLI
+  // bootstrap) is skipped — e.g. `sybilclaw --version` prints nothing.
+  { wrapperBasename: "sybilclaw.mjs", entryBasename: "entry.js" },
+  { wrapperBasename: "sybilclaw.js", entryBasename: "entry.js" },
 ] as const;
 
 type PrecomputedCommandHelpName = "browser" | "secrets" | "nodes";
