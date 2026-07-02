@@ -18,7 +18,7 @@ It answers you on the channels you already use. It can speak and listen on macOS
 
 ## What Is SybilClaw?
 
-**OpenClaw** is a self-hosted AI assistant that runs on your own devices and connects to the messaging channels you already use (Telegram, WhatsApp, Discord, Signal, iMessage, Slack, and [many more](#channels)). It can speak, listen, render a live Canvas, and control a browser — all from a single local gateway.
+**OpenClaw** is a self-hosted AI assistant that runs on your own devices and connects to the messaging channels you already use (Telegram, WhatsApp, Discord, Signal, iMessage, Slack, and [many more](#openclaw-foundation)). It can speak, listen, render a live Canvas, and control a browser — all from a single local gateway.
 
 **SybilClaw** extends OpenClaw with two core capabilities that OpenClaw doesn't support out of the box. We also follow a **conservative merge policy**: security patches and critical stability fixes are cherry-picked promptly; feature merges happen only against vetted upstream LTS releases. We'd rather be a week late than deploy a broken system.
 
@@ -84,7 +84,8 @@ Supported channels include: WhatsApp, Telegram, Slack, Discord, Google Chat, Sig
 New install? Start here: [Getting started](https://docs.openclaw.ai/start/getting-started)
 
 Preferred setup: run `sybilclaw onboard` in your terminal.
-SybilClaw Onboard guides you step by step through setting up the gateway, workspace, channels, and skills. It is the recommended CLI setup path and works on **macOS, Linux, and Windows (via WSL2; strongly recommended)**.
+SybilClaw Onboard guides you step by step through setting up the gateway, workspace, channels, and skills. It is the recommended CLI setup path and works on **macOS, Linux, and Windows**.
+Windows desktop users can start with the native [Windows Hub](https://docs.openclaw.ai/platforms/windows) companion app for setup, tray status, chat, node mode, and local MCP mode.
 Works with npm, pnpm, or bun.
 
 ## Stability & Security
@@ -159,11 +160,11 @@ Daily upstream monitoring runs automatically and produces a prioritized report. 
 
 - **[OpenAI](https://openai.com/)** (ChatGPT/Codex)
 
-Model note: while many providers and models are supported, prefer a current flagship model from the provider you trust and already use. See [Onboarding](https://docs.openclaw.ai/start/onboarding).
+Model note: while many providers and models are supported, prefer a current flagship model from the provider you trust and already use. See [Onboarding](https://docs.openclaw.ai/start/wizard).
 
 ## Install (recommended)
 
-Runtime: **Node 24 (recommended) or Node 22.16+**.
+Runtime: **Node 24 (recommended) or Node 22.19+**.
 
 ```bash
 npm install -g sybilclaw@latest
@@ -176,7 +177,7 @@ SybilClaw Onboard installs the Gateway daemon (launchd/systemd user service) so 
 
 ## Quick start (TL;DR)
 
-Runtime: **Node 24 (recommended) or Node 22.16+**.
+Runtime: **Node 24 (recommended) or Node 22.19+**.
 
 Full beginner guide (auth, pairing, channels): [Getting started](https://docs.openclaw.ai/start/getting-started)
 
@@ -186,7 +187,7 @@ sybilclaw onboard --install-daemon
 sybilclaw gateway --port 18789 --verbose
 
 # Send a message
-sybilclaw message send --to +1234567890 --message "Hello from SybilClaw"
+sybilclaw message send --target +1234567890 --message "Hello from SybilClaw"
 
 # Talk to the assistant (optionally deliver back to any connected channel: WhatsApp/Telegram/Slack/Discord/Google Chat/Signal/iMessage/BlueBubbles/IRC/Microsoft Teams/Matrix/Feishu/LINE/Mattermost/Nextcloud Talk/Nostr/Synology Chat/Tlon/Twitch/Zalo/Zalo Personal/WeChat/QQ/WebChat)
 sybilclaw agent --message "Ship checklist" --thinking high
@@ -200,7 +201,8 @@ Models config + CLI: [Models](https://docs.openclaw.ai/concepts/models). Auth pr
 
 OpenClaw connects to real messaging surfaces. Treat inbound DMs as **untrusted input**.
 
-Full security guide: [Security](https://docs.openclaw.ai/gateway/security)
+Full security guide: [Security](https://docs.openclaw.ai/gateway/security).
+Before remote exposure, use the [Gateway exposure runbook](https://docs.openclaw.ai/gateway/security/exposure-runbook).
 
 Default behavior on Telegram/WhatsApp/Signal/iMessage/Microsoft Teams/Discord/Google Chat/Slack:
 
@@ -218,7 +220,7 @@ Run `sybilclaw doctor` to surface risky/misconfigured DM policies.
 - **[Voice Wake](https://docs.openclaw.ai/nodes/voicewake) + [Talk Mode](https://docs.openclaw.ai/nodes/talk)** — wake words on macOS/iOS and continuous voice on Android (ElevenLabs + system TTS fallback).
 - **[Live Canvas](https://docs.openclaw.ai/platforms/mac/canvas)** — agent-driven visual workspace with [A2UI](https://docs.openclaw.ai/platforms/mac/canvas#canvas-a2ui).
 - **[First-class tools](https://docs.openclaw.ai/tools)** — browser, canvas, nodes, cron, sessions, and Discord/Slack actions.
-- **[Companion apps](https://docs.openclaw.ai/platforms/macos)** — macOS menu bar app + iOS/Android [nodes](https://docs.openclaw.ai/nodes).
+- **[Companion apps](https://docs.openclaw.ai/platforms)** — Windows Hub, macOS menu bar app, and iOS/Android [nodes](https://docs.openclaw.ai/nodes).
 - **[Onboarding](https://docs.openclaw.ai/start/wizard) + [skills](https://docs.openclaw.ai/tools/skills)** — onboarding-driven setup with bundled/managed/workspace skills.
 
 ## Security model (important)
@@ -226,7 +228,7 @@ Run `sybilclaw doctor` to surface risky/misconfigured DM policies.
 - Default: tools run on the host for the `main` session, so the agent has full access when it is just you.
 - Group/channel safety: set `agents.defaults.sandbox.mode: "non-main"` to run non-`main` sessions inside sandboxes. Docker is the default sandbox backend; SSH and OpenShell backends are also available.
 - Typical sandbox default: allow `bash`, `process`, `read`, `write`, `edit`, `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`; deny `browser`, `canvas`, `nodes`, `cron`, `discord`, `gateway`.
-- Before exposing anything remotely, read [Security](https://docs.openclaw.ai/gateway/security), [Sandboxing](https://docs.openclaw.ai/gateway/sandboxing), and [Configuration](https://docs.openclaw.ai/gateway/configuration).
+- Before exposing anything remotely, read [Security](https://docs.openclaw.ai/gateway/security), [Gateway exposure runbook](https://docs.openclaw.ai/gateway/security/exposure-runbook), [Sandboxing](https://docs.openclaw.ai/gateway/sandboxing), and [Configuration](https://docs.openclaw.ai/gateway/configuration).
 
 ## Operator quick refs
 
@@ -239,7 +241,7 @@ Run `sybilclaw doctor` to surface risky/misconfigured DM policies.
 
 - New here: [Getting started](https://docs.openclaw.ai/start/getting-started), [Onboarding](https://docs.openclaw.ai/start/wizard), [Updating](https://docs.openclaw.ai/install/updating)
 - Channel setup: [Channels index](https://docs.openclaw.ai/channels), [WhatsApp](https://docs.openclaw.ai/channels/whatsapp), [Telegram](https://docs.openclaw.ai/channels/telegram), [Discord](https://docs.openclaw.ai/channels/discord), [Slack](https://docs.openclaw.ai/channels/slack)
-- Apps + nodes: [macOS](https://docs.openclaw.ai/platforms/macos), [iOS](https://docs.openclaw.ai/platforms/ios), [Android](https://docs.openclaw.ai/platforms/android), [Nodes](https://docs.openclaw.ai/nodes)
+- Apps + nodes: [Windows](https://docs.openclaw.ai/platforms/windows), [macOS](https://docs.openclaw.ai/platforms/macos), [iOS](https://docs.openclaw.ai/platforms/ios), [Android](https://docs.openclaw.ai/platforms/android), [Nodes](https://docs.openclaw.ai/nodes)
 - Config + security: [Configuration](https://docs.openclaw.ai/gateway/configuration), [Security](https://docs.openclaw.ai/gateway/security), [Sandboxing](https://docs.openclaw.ai/gateway/sandboxing)
 - Remote + web: [Gateway](https://docs.openclaw.ai/gateway), [Remote access](https://docs.openclaw.ai/gateway/remote), [Tailscale](https://docs.openclaw.ai/gateway/tailscale), [Web surfaces](https://docs.openclaw.ai/web)
 - Tools + automation: [Tools](https://docs.openclaw.ai/tools), [Skills](https://docs.openclaw.ai/tools/skills), [Cron jobs](https://docs.openclaw.ai/automation/cron-jobs), [Webhooks](https://docs.openclaw.ai/automation/webhook), [Gmail Pub/Sub](https://docs.openclaw.ai/automation/gmail-pubsub)
