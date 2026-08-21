@@ -299,12 +299,23 @@ export async function resolveBootstrapFilesForRun(params: {
   const excludeHeartbeatBootstrapFile = shouldExcludeHeartbeatBootstrapFile(params);
   const sessionKey = params.sessionKey ?? params.sessionId;
   const workspaceSetupCompleted = await isWorkspaceSetupCompletedForContext(params.workspaceDir);
+  // SybilClaw per-agent memory: resolve memoryFile + memoryAllowedPaths from config.
+  const agentConfig =
+    params.agentId && params.config ? resolveAgentConfig(params.config, params.agentId) : undefined;
+  const agentMemoryFiles = agentConfig?.memoryFile;
+  const agentMemoryAllowedPaths = agentConfig?.memoryAllowedPaths;
   const rawFiles = params.sessionKey
     ? await getOrLoadBootstrapFiles({
         workspaceDir: params.workspaceDir,
         sessionKey: params.sessionKey,
+        agentMemoryFiles,
+        agentMemoryAllowedPaths,
       })
-    : await loadWorkspaceBootstrapFiles(params.workspaceDir);
+    : await loadWorkspaceBootstrapFiles(
+        params.workspaceDir,
+        agentMemoryFiles,
+        agentMemoryAllowedPaths,
+      );
   const bootstrapFiles = applyContextModeFilter({
     files: filterCompletedWorkspaceBootstrapFile(
       filterBootstrapFilesForSession(rawFiles, sessionKey),

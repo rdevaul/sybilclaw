@@ -31,6 +31,8 @@ export type ResolvedAgentConfig = {
   experimental?: AgentDefaultsConfig["experimental"];
   skills?: AgentEntry["skills"];
   memorySearch?: AgentEntry["memorySearch"];
+  memoryFile?: AgentEntry["memoryFile"];
+  memoryAllowedPaths?: AgentEntry["memoryAllowedPaths"];
   humanDelay?: AgentEntry["humanDelay"];
   tts?: AgentEntry["tts"];
   contextLimits?: AgentContextLimitsConfig;
@@ -142,6 +144,8 @@ export function resolveAgentConfig(
         : agentDefaults?.experimental,
     skills: Array.isArray(entry.skills) ? entry.skills : undefined,
     memorySearch: entry.memorySearch,
+    memoryFile: entry.memoryFile,
+    memoryAllowedPaths: entry.memoryAllowedPaths,
     humanDelay: entry.humanDelay,
     tts: entry.tts,
     contextLimits:

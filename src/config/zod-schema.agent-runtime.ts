@@ -1060,6 +1060,8 @@ export const AgentEntrySchema = z
       .optional(),
     skills: z.array(z.string()).optional(),
     memorySearch: MemorySearchSchema,
+    memoryFile: z.union([z.string(), z.array(z.string())]).optional(),
+    memoryAllowedPaths: z.array(z.string()).optional(),
     humanDelay: HumanDelaySchema.optional(),
     tts: TtsConfigSchema,
     skillsLimits: AgentSkillsLimitsSchema,

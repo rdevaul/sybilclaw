@@ -1,6 +1,6 @@
+import type { FastMode } from "@openclaw/normalization-core/string-coerce";
 // Defines agent routing, model, and runtime configuration types.
 import type { ChatType } from "../channels/chat-type.js";
-import type { FastMode } from "@openclaw/normalization-core/string-coerce";
 import type {
   AgentContextLimitsConfig,
   AgentDefaultsConfig,
@@ -117,6 +117,10 @@ export type AgentConfig = {
   /** Optional allowlist of skills for this agent; omitting it inherits agents.defaults.skills when set, and an explicit list replaces defaults instead of merging. */
   skills?: string[];
   memorySearch?: MemorySearchConfig;
+  /** Per-agent memory file override; when set, this file (or files) is used instead of the default MEMORY.md. */
+  memoryFile?: string | string[];
+  /** Per-agent allowlist of path prefixes for memory files; files outside these prefixes are skipped. */
+  memoryAllowedPaths?: string[];
   /** Human-like delay between block replies for this agent. */
   humanDelay?: HumanDelayConfig;
   /** Optional per-agent TTS overrides, deep-merged over messages.tts. */

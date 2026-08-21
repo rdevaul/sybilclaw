@@ -47,12 +47,18 @@ function pruneOldestBootstrapSnapshots(): void {
 export async function getOrLoadBootstrapFiles(params: {
   workspaceDir: string;
   sessionKey: string;
+  agentMemoryFiles?: string | string[];
+  agentMemoryAllowedPaths?: string[];
 }): Promise<WorkspaceBootstrapFile[]> {
   pruneOldestBootstrapSnapshots();
   const existing = cache.get(params.sessionKey);
   // Refresh per turn so long-lived sessions pick up edits; loadWorkspaceBootstrapFiles
   // handles unchanged file content through its guarded inode/mtime cache.
-  const files = await loadWorkspaceBootstrapFiles(params.workspaceDir);
+  const files = await loadWorkspaceBootstrapFiles(
+    params.workspaceDir,
+    params.agentMemoryFiles,
+    params.agentMemoryAllowedPaths,
+  );
   if (
     existing &&
     existing.workspaceDir === params.workspaceDir &&
