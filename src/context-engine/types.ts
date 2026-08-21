@@ -300,6 +300,29 @@ export interface ContextEngine {
   readonly info: ContextEngineInfo;
 
   /**
+   * Per-session override for `info.ownsCompaction`.
+   *
+   * Some engines manage compaction conditionally — e.g. only when a per-user
+   * feature flag is enabled. When this method is provided, the host calls it
+   * once per attempt; when omitted, the host falls back to the static
+   * `info.ownsCompaction` value (preserving prior behavior).
+   *
+   * The host passes both the canonical session identifier (`sessionId`,
+   * typically a UUID) and, when available, the structured `sessionKey`
+   * (e.g. `agent:<provider>-<user>:<surface>:<inner>`). Engines that need to
+   * resolve a user/channel identity should prefer `sessionKey` since
+   * `sessionId` is opaque.
+   *
+   * Return `true` to take ownership of compaction (host installs the engine's
+   * loop hook and skips its built-in tool-result guard); return `false` to
+   * defer to the host's vanilla compaction path for that session.
+   */
+  ownsCompactionForSession?(args: {
+    sessionId: string;
+    sessionKey?: string;
+  }): boolean | Promise<boolean>;
+
+  /**
    * Initialize engine state for a session, optionally importing historical context.
    */
   bootstrap?(params: {
