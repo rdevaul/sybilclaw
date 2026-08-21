@@ -3266,6 +3266,20 @@ export const chatHandlers: GatewayRequestHandlers = {
     }
     const requestedSessionId = normalizeOptionalText(p.sessionId);
     const backingSessionId = entry?.sessionId ?? requestedSessionId;
+    // SybilClaw: routing debug log — helps diagnose primer-leak / wrong-session
+    // routing (PRIMER-LEAK-FORENSICS-2026-05-04). The abort-controller and
+    // tool-event registration below already use the canonical `sessionKey`
+    // resolved from loadSessionEntry (upstream fixed the raw-key mismatch), so
+    // this log is diagnostic-only.
+    if (rawSessionKey !== sessionKey) {
+      context.logGateway.debug(
+        `chat.send: received sessionKey=${rawSessionKey} resolved to=${sessionKey} (canonicalized)`,
+      );
+    } else {
+      context.logGateway.debug(
+        `chat.send: received sessionKey=${rawSessionKey} resolved to=${sessionKey}`,
+      );
+    }
     const deletedAgentId = resolveDeletedAgentIdFromSessionKey(cfg, sessionKey, entry, {
       acpMetadataSessionKey: legacyKey ?? sessionKey,
     });
