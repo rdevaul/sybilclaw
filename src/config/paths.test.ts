@@ -275,7 +275,9 @@ describe("state + config path candidates", () => {
       const overrideDir = path.join(root, "override");
       const env = { OPENCLAW_STATE_DIR: overrideDir } as NodeJS.ProcessEnv;
       const resolved = resolveConfigPath(env, overrideDir, () => root);
-      expect(resolved).toBe(path.join(overrideDir, "openclaw.json"));
+      // Rebrand: when no config exists in the override dir, the canonical
+      // (new) config filename is used for the missing-config fallback.
+      expect(resolved).toBe(path.join(overrideDir, "sybilclaw.json"));
     });
   });
 });
