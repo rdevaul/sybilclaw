@@ -65,6 +65,24 @@ describe("isMainModule", () => {
     ).toBe(true);
   });
 
+  it("returns true for the sybilclaw wrapper launcher", () => {
+    // SybilClaw's primary bin is `sybilclaw` -> sybilclaw.mjs, which imports
+    // dist/entry.js. Without the sybilclaw pair, the entry-point block is
+    // skipped and `sybilclaw --version` prints nothing.
+    expect(
+      isMainModule({
+        currentFile: "/repo/dist/entry.js",
+        argv: ["node", "/repo/sybilclaw.mjs"],
+        cwd: "/repo",
+        env: {},
+        wrapperEntryPairs: [
+          { wrapperBasename: "openclaw.mjs", entryBasename: "entry.js" },
+          { wrapperBasename: "sybilclaw.mjs", entryBasename: "entry.js" },
+        ],
+      }),
+    ).toBe(true);
+  });
+
   it("returns false for unmatched wrapper launches", () => {
     expect(
       isMainModule({
