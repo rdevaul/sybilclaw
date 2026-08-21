@@ -1,3 +1,22 @@
+# 🦉 SybilClaw — Multi-User AI Gateway (OpenClaw fork)
+
+> **SybilClaw** is a hardened, multi-user fork of OpenClaw maintained by the Dark
+> Matter Lab. It adds per-agent identity, memory isolation
+> (`memoryFile`/`memoryAllowedPaths`, `memory/personal/<name>/`), per-session
+> compaction ownership, a `/skills` operator command, and a `.sybilclaw` state
+> directory + `sybilclaw` CLI (with `.openclaw`/`openclaw` legacy fallbacks).
+> This tree is rebased onto upstream **v2026.6.34**.
+>
+> SybilClaw docs: [`docs/sybilclaw/`](docs/sybilclaw/) —
+> [multi-user setup](docs/sybilclaw/multi-user-setup.md) ·
+> [migration guide](docs/sybilclaw/migrating-to-sybilclaw.md) ·
+> [stability policy](docs/sybilclaw/stability-policy.md) ·
+> [context-graph architecture](docs/sybilclaw/context-graph-architecture.md)
+>
+> The upstream OpenClaw README follows.
+
+---
+
 # 🦞 OpenClaw — Personal AI Assistant
 
 <p align="center">
