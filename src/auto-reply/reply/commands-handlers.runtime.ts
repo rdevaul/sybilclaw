@@ -35,6 +35,7 @@ import {
   handleStopCommand,
   handleUsageCommand,
 } from "./commands-session.js";
+import { handleSkillsCommand } from "./commands-skills.js";
 import { handleSteerCommand } from "./commands-steer.js";
 import { handleSubagentsCommand } from "./commands-subagents.js";
 import { handleTasksCommand } from "./commands-tasks.js";
@@ -60,6 +61,8 @@ export function loadCommandHandlers(): CommandHandler[] {
     // Keep deterministic /skill usage on the native command path before the
     // broader tool/status handlers can fall through to an agent run.
     handleSkillCommandUsage,
+    // SybilClaw /skills operator command (list/all/enable/disable/reset).
+    handleSkillsCommand,
     handleToolsCommand,
     handleStatusCommand,
     handleGoalCommand,

@@ -1,7 +1,7 @@
-/** Shared command registry builders used by browser-safe and runtime command lists. */
-import { formatFastModeAutoLabel, resolveFastModeModelAutoOnSeconds } from "../shared/fast-mode.js";
 import { normalizeOptionalLowercaseString } from "../../packages/normalization-core/src/string-coerce.js";
 import { normalizeStringEntries } from "../../packages/normalization-core/src/string-normalization.js";
+/** Shared command registry builders used by browser-safe and runtime command lists. */
+import { formatFastModeAutoLabel, resolveFastModeModelAutoOnSeconds } from "../shared/fast-mode.js";
 import { COMMAND_ARG_FORMATTERS } from "./commands-args.js";
 import type {
   ChatCommandDefinition,
@@ -212,6 +212,35 @@ export function buildBuiltinChatCommands(
         {
           name: "input",
           description: "Skill input",
+          type: "string",
+          captureRemaining: true,
+        },
+      ],
+    }),
+    defineChatCommand({
+      key: "skills",
+      description: "List or manage this agent's active skills.",
+      textAlias: "/skills",
+      acceptsArgs: true,
+      scope: "text",
+      category: "tools",
+      tier: "standard",
+      args: [
+        {
+          name: "action",
+          description: "list, all, enable, disable, or reset",
+          type: "string",
+          choices: [
+            { value: "list", label: "List" },
+            { value: "all", label: "All" },
+            { value: "enable", label: "Enable" },
+            { value: "disable", label: "Disable" },
+            { value: "reset", label: "Reset" },
+          ],
+        },
+        {
+          name: "name",
+          description: "Skill name (for enable/disable)",
           type: "string",
           captureRemaining: true,
         },
