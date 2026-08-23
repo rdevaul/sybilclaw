@@ -1,33 +1,9 @@
-# 🦉 SybilClaw — Multi-User AI Gateway (OpenClaw fork)
+# 🦞 SybilClaw — Stable, Multi-User AI with Advanced Memory Management
 
-> **SybilClaw** is a hardened, multi-user fork of OpenClaw maintained by the Dark
-> Matter Lab. It adds per-agent identity, memory isolation
-> (`memoryFile`/`memoryAllowedPaths`, `memory/personal/<name>/`), per-session
-> compaction ownership, a `/skills` operator command, and a `.sybilclaw` state
-> directory + `sybilclaw` CLI (with `.openclaw`/`openclaw` legacy fallbacks).
-> This tree is rebased onto upstream **v2026.6.34**.
->
-> SybilClaw docs: [`docs/sybilclaw/`](docs/sybilclaw/) —
-> [multi-user setup](docs/sybilclaw/multi-user-setup.md) ·
-> [migration guide](docs/sybilclaw/migrating-to-sybilclaw.md) ·
-> [stability policy](docs/sybilclaw/stability-policy.md) ·
-> [context-graph architecture](docs/sybilclaw/context-graph-architecture.md)
->
-> The upstream OpenClaw README follows.
-
----
-
-# 🦞 OpenClaw — Personal AI Assistant
+_A security-first fork of [OpenClaw](https://github.com/openclaw/openclaw) for households, research teams, and small organizations. We don't YOLO upstream changes — every merge is screened for security and stability._
 
 <p align="center">
-    <picture>
-        <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/openclaw/openclaw/main/docs/assets/openclaw-logo-text-dark.svg">
-        <img src="https://raw.githubusercontent.com/openclaw/openclaw/main/docs/assets/openclaw-logo-text.svg" alt="OpenClaw" width="500">
-    </picture>
-</p>
-
-<p align="center">
-  <strong>EXFOLIATE! EXFOLIATE!</strong>
+    <img src="docs/assets/sybilclaw-logo.png" alt="SybilClaw" width="200">
 </p>
 
 <p align="center">
@@ -40,18 +16,90 @@
 **OpenClaw** is a _personal AI assistant_ you run on your own devices.
 It answers you on the channels you already use. It can speak and listen on macOS/iOS/Android, and can render a live Canvas you control. The Gateway is just the control plane — the product is the assistant.
 
-If you want a personal, single-user assistant that feels local, fast, and always-on, this is it.
+## What Is SybilClaw?
 
-Supported channels include: WhatsApp, Telegram, Slack, Discord, Google Chat, Signal, iMessage, IRC, Microsoft Teams, Matrix, Feishu, LINE, Mattermost, Nextcloud Talk, Nostr, Synology Chat, Tlon, Twitch, Zalo, Zalo Personal, WeChat, QQ, WebChat.
+**OpenClaw** is a self-hosted AI assistant that runs on your own devices and connects to the messaging channels you already use (Telegram, WhatsApp, Discord, Signal, iMessage, Slack, and [many more](#openclaw-foundation)). It can speak, listen, render a live Canvas, and control a browser — all from a single local gateway.
 
-[Website](https://openclaw.ai) · [Docs](https://docs.openclaw.ai) · [Vision](VISION.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) · [DeepWiki](https://deepwiki.com/openclaw/openclaw) · [Getting Started](https://docs.openclaw.ai/start/getting-started) · [Updating](https://docs.openclaw.ai/install/updating) · [Showcase](https://docs.openclaw.ai/start/showcase) · [FAQ](https://docs.openclaw.ai/help/faq) · [Onboarding](https://docs.openclaw.ai/start/wizard) · [Nix](https://github.com/openclaw/nix-openclaw) · [Docker](https://docs.openclaw.ai/install/docker) · [Discord](https://discord.gg/clawd)
+**SybilClaw** extends OpenClaw with two core capabilities that OpenClaw doesn't support out of the box. We also follow a **conservative merge policy**: security patches and critical stability fixes are cherry-picked promptly; feature merges happen only against vetted upstream LTS releases. We'd rather be a week late than deploy a broken system.
+
+**Why SybilClaw over OpenClaw?**
+
+- **Security screen:** every upstream change is classified before it lands — security/stability first, features later
+- **Targeted merges only:** no blind main-branch pulls; we wait for upstream LTS branches
+- **Proven config:** the same multi-user + memory architecture you trust, hardened by daily upstream monitoring
+
+### 1. True Multi-User Support
+
+OpenClaw is designed around a single user. SybilClaw makes it a first-class multi-user system:
+
+- **One personality, many people.** A single `SOUL.md` defines the AI's character, expertise, and values. Every user interacts with the same coherent entity — not a blank chatbot.
+- **Per-user memory isolation.** Each user gets their own `MEMORY.md` and personal document store. Alice's context, history, and preferences never bleed into Bob's.
+- **Shared household/team knowledge.** A separate shared memory layer holds facts everyone should know — schedules, household logistics, team context — accessible to all users without polluting personal memory.
+- **Role-based access.** Route different users (or different messaging channels) to isolated agents with their own workspaces and permission levels.
+
+**Who is this for?**
+
+- Households where multiple family members want their own relationship with a shared AI assistant
+- Research teams or small business units that want a domain-expert AI with per-user context
+- Anyone running a single AI service for a small group (2–10 people) without wanting to maintain separate instances
+
+### 2. Advanced Memory Management
+
+Context windows are finite. Most AI assistants either forget everything between sessions or dump everything into a context that grows until it breaks. SybilClaw takes a structured approach:
+
+**Tiered memory architecture:**
+
+| Layer                  | Purpose                                                  | Scope     |
+| ---------------------- | -------------------------------------------------------- | --------- |
+| **Personal MEMORY.md** | Long-term curated facts, preferences, decisions          | Per-user  |
+| **Personal topics/**   | Typed subdirectories: projects, tools, feedback, context | Per-user  |
+| **Shared household/**  | Schedules, logistics, shared decisions                   | All users |
+| **Daily logs**         | Session-by-session notes                                 | Per-user  |
+| **Context graph**      | Semantic tag-based retrieval across sessions             | Per-user  |
+
+**Key behaviors:**
+
+- Memory is written to files — it survives session restarts and context compaction
+- A graduated compaction strategy (tool pruning → checkpoints → session extraction → hard compact) means important context is preserved even under pressure
+- The context graph layer provides tag-based semantic retrieval, so the AI can find relevant prior context without scanning everything
+- Session summaries are automatically archived for long-term searchability
+
+### SybilClaw Quick Links
+
+- [Multi-user setup guide](docs/sybilclaw/multi-user-setup.md) — configure per-user agents with isolated memory
+- [Context graph architecture](docs/sybilclaw/context-graph-architecture.md) — tag-based context management system
+- **Key config:** `agents.<agentId>.memoryFile` — path to per-user MEMORY.md (relative to workspace or absolute)
+- **Migration:** [Migrating from OpenClaw](docs/sybilclaw/migrating-to-sybilclaw.md) — step-by-step guide for existing OpenClaw users
+
+---
+
+## OpenClaw Foundation
+
+SybilClaw inherits the full OpenClaw platform. Everything below is available in SybilClaw:
+
+Supported channels include: WhatsApp, Telegram, Slack, Discord, Google Chat, Signal, iMessage, BlueBubbles, IRC, Microsoft Teams, Matrix, Feishu, LINE, Mattermost, Nextcloud Talk, Nostr, Synology Chat, Tlon, Twitch, Zalo, Zalo Personal, WeChat, QQ, WebChat.
+
+[Website](https://openclaw.ai) · [Docs](https://docs.openclaw.ai) · [Vision](VISION.md) · [DeepWiki](https://deepwiki.com/openclaw/openclaw) · [Getting Started](https://docs.openclaw.ai/start/getting-started) · [Updating](https://docs.openclaw.ai/install/updating) · [Showcase](https://docs.openclaw.ai/start/showcase) · [FAQ](https://docs.openclaw.ai/help/faq) · [Onboarding](https://docs.openclaw.ai/start/wizard) · [Nix](https://github.com/openclaw/nix-openclaw) · [Docker](https://docs.openclaw.ai/install/docker) · [Discord](https://discord.gg/clawd)
 
 New install? Start here: [Getting started](https://docs.openclaw.ai/start/getting-started)
 
-Preferred setup: run `openclaw onboard` in your terminal.
-OpenClaw Onboard guides you step by step through setting up the gateway, workspace, channels, and skills. It is the recommended CLI setup path and works on **macOS, Linux, and Windows**.
+Preferred setup: run `sybilclaw onboard` in your terminal.
+SybilClaw Onboard guides you step by step through setting up the gateway, workspace, channels, and skills. It is the recommended CLI setup path and works on **macOS, Linux, and Windows**.
 Windows desktop users can start with the native [Windows Hub](https://docs.openclaw.ai/platforms/windows) companion app for setup, tray status, chat, node mode, and local MCP mode.
 Works with npm, pnpm, or bun.
+
+## Stability & Security
+
+SybilClaw follows a conservative merge strategy:
+
+| Policy                   | Detail                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| **Tier 1 (ASAP)**        | Security patches, crash fixes, CVEs — cherry-picked within 24 hours          |
+| **Tier 2 (Maintenance)** | Stability, performance, bug fixes — merged in planned maintenance windows    |
+| **Tier 3 (Track)**       | Features, experiments — logged and tracked, merged only against LTS releases |
+| **LTS target**           | Full merges only against upstream LTS branches — never chasing HEAD          |
+
+Daily upstream monitoring runs automatically and produces a prioritized report. See [docs/sybilclaw/stability-policy.md](docs/sybilclaw/stability-policy.md) for details.
 
 ## Sponsors
 
@@ -119,13 +167,13 @@ Model note: while many providers and models are supported, prefer a current flag
 Runtime: **Node 24 (recommended) or Node 22.19+**.
 
 ```bash
-npm install -g openclaw@latest
-# or: pnpm add -g openclaw@latest
+npm install -g sybilclaw@latest
+# or: pnpm add -g sybilclaw@latest
 
-openclaw onboard --install-daemon
+sybilclaw onboard --install-daemon
 ```
 
-OpenClaw Onboard installs the Gateway daemon (launchd/systemd user service) so it stays running.
+SybilClaw Onboard installs the Gateway daemon (launchd/systemd user service) so it stays running.
 
 ## Quick start (TL;DR)
 
@@ -133,31 +181,19 @@ Runtime: **Node 24 (recommended) or Node 22.19+**.
 
 Full beginner guide (auth, pairing, channels): [Getting started](https://docs.openclaw.ai/start/getting-started)
 
-Recommended daemon mode:
-
 ```bash
-openclaw onboard --install-daemon
-openclaw gateway status
-```
+sybilclaw onboard --install-daemon
 
-Foreground/debug mode:
+sybilclaw gateway --port 18789 --verbose
 
-```bash
-openclaw gateway stop
-openclaw gateway --port 18789 --verbose
-```
-
-Send a test message or ask the assistant after either startup mode is running:
-
-```bash
 # Send a message
-openclaw message send --target +1234567890 --message "Hello from OpenClaw"
+sybilclaw message send --target +1234567890 --message "Hello from SybilClaw"
 
-# Talk to the assistant (optionally deliver back to any connected channel: WhatsApp/Telegram/Slack/Discord/Google Chat/Signal/iMessage/IRC/Microsoft Teams/Matrix/Feishu/LINE/Mattermost/Nextcloud Talk/Nostr/Synology Chat/Tlon/Twitch/Zalo/Zalo Personal/WeChat/QQ/WebChat)
-openclaw agent --message "Ship checklist" --thinking high
+# Talk to the assistant (optionally deliver back to any connected channel: WhatsApp/Telegram/Slack/Discord/Google Chat/Signal/iMessage/BlueBubbles/IRC/Microsoft Teams/Matrix/Feishu/LINE/Mattermost/Nextcloud Talk/Nostr/Synology Chat/Tlon/Twitch/Zalo/Zalo Personal/WeChat/QQ/WebChat)
+sybilclaw agent --message "Ship checklist" --thinking high
 ```
 
-Upgrading? [Updating guide](https://docs.openclaw.ai/install/updating) (and run `openclaw doctor`).
+Upgrading? Just run `sybilclaw update` (or `npm update -g sybilclaw`), and run `sybilclaw doctor` to verify your setup.
 
 Models config + CLI: [Models](https://docs.openclaw.ai/concepts/models). Auth profile rotation + fallbacks: [Model failover](https://docs.openclaw.ai/concepts/model-failover).
 
@@ -171,15 +207,15 @@ Before remote exposure, use the [Gateway exposure runbook](https://docs.openclaw
 Default behavior on Telegram/WhatsApp/Signal/iMessage/Microsoft Teams/Discord/Google Chat/Slack:
 
 - **DM pairing** (`dmPolicy="pairing"` / `channels.discord.dmPolicy="pairing"` / `channels.slack.dmPolicy="pairing"`; legacy: `channels.discord.dm.policy`, `channels.slack.dm.policy`): unknown senders receive a short pairing code and the bot does not process their message.
-- Approve with: `openclaw pairing approve <channel> <code>` (then the sender is added to a local allowlist store).
+- Approve with: `sybilclaw pairing approve <channel> <code>` (then the sender is added to a local allowlist store).
 - Public inbound DMs require an explicit opt-in: set `dmPolicy="open"` and include `"*"` in the channel allowlist (`allowFrom` / `channels.discord.allowFrom` / `channels.slack.allowFrom`; legacy: `channels.discord.dm.allowFrom`, `channels.slack.dm.allowFrom`).
 
-Run `openclaw doctor` to surface risky/misconfigured DM policies.
+Run `sybilclaw doctor` to surface risky/misconfigured DM policies.
 
 ## Highlights
 
 - **[Local-first Gateway](https://docs.openclaw.ai/gateway)** — single control plane for sessions, channels, tools, and events.
-- **[Multi-channel inbox](https://docs.openclaw.ai/channels)** — WhatsApp, Telegram, Slack, Discord, Google Chat, Signal, iMessage, IRC, Microsoft Teams, Matrix, Feishu, LINE, Mattermost, Nextcloud Talk, Nostr, Synology Chat, Tlon, Twitch, Zalo, Zalo Personal, WeChat, QQ, WebChat, macOS, iOS/Android.
+- **[Multi-channel inbox](https://docs.openclaw.ai/channels)** — WhatsApp, Telegram, Slack, Discord, Google Chat, Signal, BlueBubbles (iMessage), iMessage (legacy), IRC, Microsoft Teams, Matrix, Feishu, LINE, Mattermost, Nextcloud Talk, Nostr, Synology Chat, Tlon, Twitch, Zalo, Zalo Personal, WeChat, QQ, WebChat, macOS, iOS/Android.
 - **[Multi-agent routing](https://docs.openclaw.ai/gateway/configuration)** — route inbound channels/accounts/peers to isolated agents (workspaces + per-agent sessions).
 - **[Voice Wake](https://docs.openclaw.ai/nodes/voicewake) + [Talk Mode](https://docs.openclaw.ai/nodes/talk)** — wake words on macOS/iOS and continuous voice on Android (ElevenLabs + system TTS fallback).
 - **[Live Canvas](https://docs.openclaw.ai/platforms/mac/canvas)** — agent-driven visual workspace with [A2UI](https://docs.openclaw.ai/platforms/mac/canvas#canvas-a2ui).
@@ -205,8 +241,8 @@ Run `openclaw doctor` to surface risky/misconfigured DM policies.
 
 - New here: [Getting started](https://docs.openclaw.ai/start/getting-started), [Onboarding](https://docs.openclaw.ai/start/wizard), [Updating](https://docs.openclaw.ai/install/updating)
 - Channel setup: [Channels index](https://docs.openclaw.ai/channels), [WhatsApp](https://docs.openclaw.ai/channels/whatsapp), [Telegram](https://docs.openclaw.ai/channels/telegram), [Discord](https://docs.openclaw.ai/channels/discord), [Slack](https://docs.openclaw.ai/channels/slack)
-- Apps + nodes: [Windows Hub](https://docs.openclaw.ai/platforms/windows), [macOS](https://docs.openclaw.ai/platforms/macos), [iOS](https://docs.openclaw.ai/platforms/ios), [Android](https://docs.openclaw.ai/platforms/android), [Nodes](https://docs.openclaw.ai/nodes)
-- Config + security: [Configuration](https://docs.openclaw.ai/gateway/configuration), [Security](https://docs.openclaw.ai/gateway/security), [Exposure runbook](https://docs.openclaw.ai/gateway/security/exposure-runbook), [Sandboxing](https://docs.openclaw.ai/gateway/sandboxing)
+- Apps + nodes: [Windows](https://docs.openclaw.ai/platforms/windows), [macOS](https://docs.openclaw.ai/platforms/macos), [iOS](https://docs.openclaw.ai/platforms/ios), [Android](https://docs.openclaw.ai/platforms/android), [Nodes](https://docs.openclaw.ai/nodes)
+- Config + security: [Configuration](https://docs.openclaw.ai/gateway/configuration), [Security](https://docs.openclaw.ai/gateway/security), [Sandboxing](https://docs.openclaw.ai/gateway/sandboxing)
 - Remote + web: [Gateway](https://docs.openclaw.ai/gateway), [Remote access](https://docs.openclaw.ai/gateway/remote), [Tailscale](https://docs.openclaw.ai/gateway/tailscale), [Web surfaces](https://docs.openclaw.ai/web)
 - Tools + automation: [Tools](https://docs.openclaw.ai/tools), [Skills](https://docs.openclaw.ai/tools/skills), [Cron jobs](https://docs.openclaw.ai/automation/cron-jobs), [Webhooks](https://docs.openclaw.ai/automation/webhook), [Gmail Pub/Sub](https://docs.openclaw.ai/automation/gmail-pubsub)
 - Internals: [Architecture](https://docs.openclaw.ai/concepts/architecture), [Agent](https://docs.openclaw.ai/concepts/agent), [Session model](https://docs.openclaw.ai/concepts/session), [Gateway protocol](https://docs.openclaw.ai/reference/rpc)
@@ -231,33 +267,30 @@ Note: signed builds required for macOS permissions to stick across rebuilds (see
 
 - Pairs as a node over the Gateway WebSocket (device pairing).
 - Voice trigger forwarding + Canvas surface.
-- Controlled via `openclaw nodes …`.
+- Controlled via `sybilclaw nodes …`.
 
 Runbook: [iOS connect](https://docs.openclaw.ai/platforms/ios).
 
 ### Android node (optional)
 
-- Pairs as a WS node via device pairing (`openclaw devices ...`).
+- Pairs as a WS node via device pairing (`sybilclaw devices ...`).
 - Exposes Connect/Chat/Voice tabs plus Canvas, Camera, Screen capture, and Android device command families.
 - Runbook: [Android connect](https://docs.openclaw.ai/platforms/android).
 
 ## From source (development)
 
-Use `pnpm` for source checkouts. The repository is a pnpm workspace, and bundled
-plugins load from `extensions/*` during development so their package-local
-dependencies and your edits are used directly. Plain `npm install` at the repo
-root is not a supported source setup.
+Prefer `pnpm` for builds from source. Bun is optional for running TypeScript directly.
 
 For the dev loop:
 
 ```bash
 git clone https://github.com/openclaw/openclaw.git
-cd openclaw
+cd sybilclaw
 
 pnpm install
 
 # First run only (or after resetting local OpenClaw config/workspace)
-pnpm openclaw setup
+pnpm sybilclaw setup
 
 # Optional: prebuild Control UI before first startup
 pnpm ui:build
@@ -273,9 +306,22 @@ pnpm build
 pnpm ui:build
 ```
 
-`pnpm openclaw setup` writes the local config/workspace needed for `pnpm gateway:watch`. It is safe to re-run, but you normally only need it on first setup or after resetting local state. `pnpm gateway:watch` does not rebuild `dist/control-ui`, so rerun `pnpm ui:build` after `ui/` changes or use `pnpm ui:dev` when iterating on the Control UI. If you want this checkout to run onboarding directly, use `pnpm openclaw onboard --install-daemon`.
+`pnpm sybilclaw setup` writes the local config/workspace needed for `pnpm gateway:watch`. It is safe to re-run, but you normally only need it on first setup or after resetting local state. `pnpm gateway:watch` does not rebuild `dist/control-ui`, so rerun `pnpm ui:build` after `ui/` changes or use `pnpm ui:dev` when iterating on the Control UI. If you want this checkout to run onboarding directly, use `pnpm sybilclaw onboard --install-daemon`.
 
-Note: `pnpm openclaw ...` runs TypeScript directly (via `tsx`). `pnpm build` produces `dist/` for running via Node / the packaged `openclaw` binary, while `pnpm gateway:watch` rebuilds the runtime on demand during the dev loop.
+Note: `pnpm sybilclaw ...` runs TypeScript directly (via `tsx`). `pnpm build` produces `dist/` for running via Node / the packaged `sybilclaw` binary, while `pnpm gateway:watch` rebuilds the runtime on demand during the dev loop.
+
+## Stability channels
+
+SybilClaw inherits OpenClaw's release channels but applies its own screening:
+
+- **stable**: tagged releases that have passed SybilClaw's security review
+- **beta**: prerelease tags for testing — not recommended for production
+- **dev**: moving head — **not supported by SybilClaw**; use OpenClaw upstream directly for bleeding-edge features
+
+Switch channels: `sybilclaw update --channel stable|beta`
+Details: [Development channels](https://docs.openclaw.ai/install/development-channels).
+
+> **Note:** SybilClaw deliberately does not track upstream `main`. If you want the latest experimental features, use OpenClaw directly. SybilClaw is for people who value stability.
 
 ## Development channels
 
@@ -283,18 +329,18 @@ Note: `pnpm openclaw ...` runs TypeScript directly (via `tsx`). `pnpm build` pro
 - **beta**: prerelease tags (`vYYYY.M.D-beta.N`), npm dist-tag `beta` (macOS app may be missing).
 - **dev**: moving head of `main`, npm dist-tag `dev` (when published).
 
-Switch channels (git + npm): `openclaw update --channel stable|beta|dev`.
+Switch channels (git + npm): `sybilclaw update --channel stable|beta|dev`.
 Details: [Development channels](https://docs.openclaw.ai/install/development-channels).
 
 ## Agent workspace + skills
 
-- Workspace root: `~/.openclaw/workspace` (configurable via `agents.defaults.workspace`).
+- Workspace root: `~/.sybilclaw/workspace` (configurable via `agents.defaults.workspace`).
 - Injected prompt files: `AGENTS.md`, `SOUL.md`, `TOOLS.md`.
-- Skills: `~/.openclaw/workspace/skills/<skill>/SKILL.md`.
+- Skills: `~/.sybilclaw/workspace/skills/<skill>/SKILL.md`.
 
 ## Configuration
 
-Minimal `~/.openclaw/openclaw.json` (model + defaults):
+Minimal `~/.sybilclaw/sybilclaw.json` (model + defaults):
 
 ```json5
 {
@@ -310,10 +356,12 @@ Minimal `~/.openclaw/openclaw.json` (model + defaults):
 
 [![Star History Chart](https://api.star-history.com/svg?repos=openclaw/openclaw&type=date&legend=top-left)](https://www.star-history.com/#openclaw/openclaw&type=date&legend=top-left)
 
-## Molty
+## Molty & Heritage
 
 OpenClaw was built for **Molty**, a space lobster AI assistant. 🦞
 by Peter Steinberger and the community.
+
+SybilClaw inherits this heritage but carries its own identity — named for Sybil, the oracle who saw the future clearly. We see stability coming, and we don't ship until it arrives.
 
 - [openclaw.ai](https://openclaw.ai)
 - [soul.md](https://soul.md)
@@ -326,7 +374,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, maintainers, and how to s
 AI/vibe-coded PRs welcome! 🤖
 
 Special thanks to [Mario Zechner](https://mariozechner.at/) for his support and for
-[pi-mono](https://github.com/earendil-works/pi-mono).
+[pi-mono](https://github.com/badlogic/pi-mono).
 Special thanks to Adam Doppelt for the lobster.bot domain.
 
 Thanks to all clawtributors:
@@ -476,7 +524,7 @@ nico-hoff
 nikus-pan
 nonggialiang
 oliviareid-svg
-openclaw-bot
+sybilclaw-bot
 pablohrcarvalho
 patrick-barletta
 pinghuachiu
