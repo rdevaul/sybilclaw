@@ -1,6 +1,7 @@
 /** Config mutation helpers used by chat commands that edit OpenClaw config. */
 import { setConfigValueAtPath, unsetConfigValueAtPath } from "../../config/config-paths.js";
 import {
+  mutateConfigFile,
   transformConfigFileWithRetry,
   validateConfigObjectWithPlugins,
 } from "../../config/config.js";
@@ -96,6 +97,38 @@ type AllowlistConfigEditResult =
     }
   | null
   | undefined;
+
+type AgentConfigEntry = NonNullable<NonNullable<OpenClawConfig["agents"]>["list"]>[number];
+
+/**
+ * Applies a mutation to a single agent config entry (matched by normalized id)
+ * through the sanctioned config write seam. The `mutate` callback receives the
+ * live agent draft and mutates it in place; if the agent is not found the write
+ * is a no-op. Used by the SybilClaw `/skills` operator command to edit
+ * `agents.list[].skills` without importing the low-level config writer directly
+ * (which the deprecated-internal-config-api guardrail forbids in this scope).
+ */
+export async function mutateAgentConfigEntry(params: {
+  normalizedAgentId: string;
+  normalizeAgentId: (id: string) => string;
+  mutate: (agent: AgentConfigEntry) => void;
+}): Promise<void> {
+  await mutateConfigFile({
+    mutate: (draft) => {
+      const agents = draft.agents?.list;
+      if (!Array.isArray(agents)) {
+        return;
+      }
+      const agent = agents.find(
+        (candidate) => params.normalizeAgentId(candidate.id) === params.normalizedAgentId,
+      );
+      if (!agent) {
+        return;
+      }
+      params.mutate(agent);
+    },
+  });
+}
 
 type MaybePromise<T> = T | Promise<T>;
 

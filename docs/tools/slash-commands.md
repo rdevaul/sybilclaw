@@ -247,6 +247,7 @@ plugins.
     | Command | Description |
     | --- | --- |
     | `/skill <name> [input]` | Run a skill by name |
+    | `/skills [all\|<name>\|enable <name>\|disable <name>\|reset]` | List or manage this agent's active skills |
     | `/allowlist [list\|add\|remove] ...` | Manage allowlist entries. Text-only |
     | `/approve <id> <decision>` | Resolve exec or plugin approval prompts |
     | `/btw <question>` | Ask a side question without changing session context. Alias: `/side`. See [BTW](/tools/btw) |

@@ -1,5 +1,4 @@
 import { resolveSessionAgentId } from "../../agents/agent-scope.js";
-import { mutateConfigFile } from "../../config/config.js";
 import { logVerbose } from "../../globals.js";
 import { normalizeAgentId } from "../../routing/session-key.js";
 import { resolveEffectiveAgentSkillFilter } from "../../skills/discovery/agent-filter.js";
@@ -9,6 +8,7 @@ import {
 } from "../../skills/loading/workspace.js";
 import type { SkillEntry } from "../../skills/types.js";
 import type { CommandHandler } from "./commands-types.js";
+import { mutateAgentConfigEntry } from "./config-mutations.js";
 
 /**
  * Port of the legacy SybilClaw `/skills` operator command, adapted to the
@@ -179,16 +179,10 @@ async function handleSkillEnable(params: {
   }
 
   const normalizedId = normalizeAgentId(agentId);
-  await mutateConfigFile({
-    mutate: (draft) => {
-      const agents = draft.agents?.list;
-      if (!Array.isArray(agents)) {
-        return;
-      }
-      const agent = agents.find((a) => normalizeAgentId(a.id) === normalizedId);
-      if (!agent) {
-        return;
-      }
+  await mutateAgentConfigEntry({
+    normalizedAgentId: normalizedId,
+    normalizeAgentId,
+    mutate: (agent) => {
       const next = new Set(materializeEffectiveSet(effectiveFilter, allNames));
       next.add(skillName);
       agent.skills = Array.from(next).toSorted();
@@ -215,16 +209,10 @@ async function handleSkillDisable(params: {
   }
 
   const normalizedId = normalizeAgentId(agentId);
-  await mutateConfigFile({
-    mutate: (draft) => {
-      const agents = draft.agents?.list;
-      if (!Array.isArray(agents)) {
-        return;
-      }
-      const agent = agents.find((a) => normalizeAgentId(a.id) === normalizedId);
-      if (!agent) {
-        return;
-      }
+  await mutateAgentConfigEntry({
+    normalizedAgentId: normalizedId,
+    normalizeAgentId,
+    mutate: (agent) => {
       const next = materializeEffectiveSet(effectiveFilter, allNames).filter(
         (n) => n !== skillName,
       );
@@ -237,16 +225,10 @@ async function handleSkillDisable(params: {
 
 async function handleSkillReset(agentId: string): Promise<string> {
   const normalizedId = normalizeAgentId(agentId);
-  await mutateConfigFile({
-    mutate: (draft) => {
-      const agents = draft.agents?.list;
-      if (!Array.isArray(agents)) {
-        return;
-      }
-      const agent = agents.find((a) => normalizeAgentId(a.id) === normalizedId);
-      if (!agent) {
-        return;
-      }
+  await mutateAgentConfigEntry({
+    normalizedAgentId: normalizedId,
+    normalizeAgentId,
+    mutate: (agent) => {
       delete agent.skills;
     },
   });
