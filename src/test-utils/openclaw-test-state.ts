@@ -70,6 +70,14 @@ const ENV_KEYS = [
   "OPENCLAW_CONFIG_PATH",
   "OPENCLAW_AGENT_DIR",
   "OPENCLAW_SERVICE_REPAIR_POLICY",
+  // SybilClaw fork: these take precedence over their OPENCLAW_* counterparts in
+  // config/paths.ts (resolveStateDir/resolveCanonicalConfigPath). If an ambient
+  // SYBILCLAW_STATE_DIR/SYBILCLAW_CONFIG_PATH leaks in from the parent process
+  // (e.g. a running gateway) it would silently override the isolated
+  // OPENCLAW_STATE_DIR this helper sets, defeating test isolation. Capture and
+  // override them so isolation holds on the fork.
+  "SYBILCLAW_STATE_DIR",
+  "SYBILCLAW_CONFIG_PATH",
 ] as const;
 
 function resetConfigRuntimeStateForTest(): void {
@@ -231,6 +239,11 @@ function buildEnvVars(params: {
   const envVars: Record<string, string | undefined> = {
     OPENCLAW_STATE_DIR: params.stateDir,
     OPENCLAW_CONFIG_PATH: params.configPath,
+    // SybilClaw fork: pin the SYBILCLAW_* overrides to the same isolated paths so
+    // an ambient SYBILCLAW_STATE_DIR/SYBILCLAW_CONFIG_PATH cannot win precedence
+    // over the isolated OPENCLAW_* values and bleed tests into real state.
+    SYBILCLAW_STATE_DIR: params.stateDir,
+    SYBILCLAW_CONFIG_PATH: params.configPath,
     ...agentDirEnv,
     ...params.scenarioEnv,
     ...params.extraEnv,
