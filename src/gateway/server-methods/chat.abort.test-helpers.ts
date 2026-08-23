@@ -46,7 +46,12 @@ type ChatAbortTestContext = Record<string, unknown> & {
   agentRunSeq: Map<string, number>;
   broadcast: (...args: unknown[]) => void;
   nodeSendToSession: (...args: unknown[]) => void;
-  logGateway: { warn: (...args: unknown[]) => void };
+  logGateway: {
+    warn: (...args: unknown[]) => void;
+    debug: (...args: unknown[]) => void;
+    info: (...args: unknown[]) => void;
+    error: (...args: unknown[]) => void;
+  };
 };
 
 type ChatAbortRespondMock = Mock<RespondFn>;
@@ -72,7 +77,7 @@ export function createChatAbortContext(
     getRuntimeConfig: () => ({}),
     broadcast: vi.fn(),
     nodeSendToSession: vi.fn(),
-    logGateway: { warn: vi.fn() },
+    logGateway: { warn: vi.fn(), debug: vi.fn(), info: vi.fn(), error: vi.fn() },
     ...overrides,
   } as ChatAbortTestContext;
   if (overrides.clearChatRunState === undefined) {

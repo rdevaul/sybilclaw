@@ -204,7 +204,7 @@ describe("chat abort transcript persistence", () => {
       ]),
       broadcast: vi.fn(),
       nodeSendToSession: vi.fn(),
-      logGateway: { warn: vi.fn() },
+      logGateway: { warn: vi.fn(), debug: vi.fn(), info: vi.fn(), error: vi.fn() },
     });
 
     await invokeChatAbortHandler({
@@ -269,7 +269,7 @@ describe("chat abort transcript persistence", () => {
       chatAbortControllers: new Map([[runId, createActiveRun("main", { sessionId })]]),
       chatRunBuffers: new Map([[runId, "Partial after collision"]]),
       chatDeltaSentAt: new Map([[runId, Date.now()]]),
-      logGateway: { warn: vi.fn() },
+      logGateway: { warn: vi.fn(), debug: vi.fn(), info: vi.fn(), error: vi.fn() },
     });
 
     await invokeChatAbortHandler({
@@ -328,7 +328,7 @@ describe("chat abort transcript persistence", () => {
       chatAbortControllers: new Map([[runId, createActiveRun("main", { sessionId })]]),
       chatRunBuffers: new Map([[runId, "Duplicate partial"]]),
       chatDeltaSentAt: new Map([[runId, Date.now()]]),
-      logGateway: { warn: vi.fn() },
+      logGateway: { warn: vi.fn(), debug: vi.fn(), info: vi.fn(), error: vi.fn() },
     });
 
     await invokeChatAbortHandler({
