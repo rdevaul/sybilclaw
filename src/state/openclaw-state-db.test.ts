@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readCronRunLogEntriesSync } from "../cron/run-log.js";
+import { cronStoreKey } from "../cron/store/key.js";
 import {
   executeSqliteQuerySync,
   executeSqliteQueryTakeFirstSync,
@@ -17,6 +18,7 @@ import type { DB as OpenClawStateKyselyDatabase } from "./openclaw-state-db.gene
 import {
   closeOpenClawStateDatabaseForTest,
   openOpenClawStateDatabase,
+  repairOpenClawStateDatabaseSchema,
   runOpenClawStateWriteTransaction,
 } from "./openclaw-state-db.js";
 import { resolveOpenClawStateSqlitePath } from "./openclaw-state-db.paths.js";
@@ -810,5 +812,117 @@ describe("openclaw state database", () => {
         );
       }, options),
     ).not.toThrow();
+  });
+});
+
+describe("repairOpenClawStateDatabaseSchema — orphaned path-keyed store rekey", () => {
+  // Uses a temp root ending in `.sybilclaw` so resolveConfigDir(env) (STATE_DIR
+  // override) yields the fork-default config root and the migration derives
+  // legacy `.openclaw`/`.clawdbot` roots by last-segment swap.
+  function createSybilclawStateDir(): { root: string; stateDir: string } {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-rekey-"));
+    const stateDir = path.join(root, ".sybilclaw");
+    fs.mkdirSync(stateDir, { recursive: true });
+    return { root, stateDir };
+  }
+
+  function seedCronJob(
+    db: InstanceType<ReturnType<typeof requireNodeSqlite>["DatabaseSync"]>,
+    storeKey: string,
+    jobId: string,
+    name: string,
+  ): void {
+    db.prepare(
+      `INSERT INTO cron_jobs (
+         store_key, job_id, name, enabled, created_at_ms, schedule_kind,
+         session_target, wake_mode, payload_kind, job_json, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      storeKey,
+      jobId,
+      name,
+      1,
+      1000,
+      "interval",
+      "session",
+      "active",
+      "message",
+      JSON.stringify({ id: jobId, name }),
+      2000,
+    );
+  }
+
+  it("heals a legacy-keyed cron_jobs row into the current .sybilclaw store_key", () => {
+    const { root, stateDir } = createSybilclawStateDir();
+    const env = { OPENCLAW_STATE_DIR: stateDir } as NodeJS.ProcessEnv;
+    // Force schema creation, then close so we can seed a raw legacy-keyed row.
+    const database = openOpenClawStateDatabase({ env });
+    const databasePath = database.path;
+    closeOpenClawStateDatabaseForTest();
+
+    const currentKey = cronStoreKey(path.join(root, ".sybilclaw", "cron", "jobs.json"));
+    const legacyKey = cronStoreKey(path.join(root, ".openclaw", "cron", "jobs.json"));
+    expect(currentKey).not.toBe(legacyKey);
+
+    const { DatabaseSync } = requireNodeSqlite();
+    const seedDb = new DatabaseSync(databasePath);
+    seedCronJob(seedDb, legacyKey, "orphan-job", "Orphaned job");
+    seedDb.close();
+
+    const result = repairOpenClawStateDatabaseSchema({ env });
+    expect(result.warnings).toEqual([]);
+    expect(result.changes.some((c) => c.includes("Rekeyed"))).toBe(true);
+
+    const readDb = new DatabaseSync(databasePath);
+    const underCurrent = readDb
+      .prepare("SELECT job_id, name FROM cron_jobs WHERE store_key = ?")
+      .all(currentKey) as Array<{ job_id: string; name: string }>;
+    const underLegacy = readDb
+      .prepare("SELECT job_id FROM cron_jobs WHERE store_key = ?")
+      .all(legacyKey) as Array<{ job_id: string }>;
+    readDb.close();
+
+    expect(underCurrent).toEqual([{ job_id: "orphan-job", name: "Orphaned job" }]);
+    expect(underLegacy).toEqual([]);
+
+    // Idempotent: a second run is a no-op (no further rekeys).
+    const second = repairOpenClawStateDatabaseSchema({ env });
+    expect(second.changes.some((c) => c.includes("Rekeyed"))).toBe(false);
+
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("does not clobber a pre-existing correct row (guard holds)", () => {
+    const { root, stateDir } = createSybilclawStateDir();
+    const env = { OPENCLAW_STATE_DIR: stateDir } as NodeJS.ProcessEnv;
+    const database = openOpenClawStateDatabase({ env });
+    const databasePath = database.path;
+    closeOpenClawStateDatabaseForTest();
+
+    const currentKey = cronStoreKey(path.join(root, ".sybilclaw", "cron", "jobs.json"));
+    const legacyKey = cronStoreKey(path.join(root, ".openclaw", "cron", "jobs.json"));
+
+    const { DatabaseSync } = requireNodeSqlite();
+    const seedDb = new DatabaseSync(databasePath);
+    // Same job_id under BOTH keys: legacy stale copy + current authoritative copy.
+    seedCronJob(seedDb, legacyKey, "dup-job", "Stale legacy copy");
+    seedCronJob(seedDb, currentKey, "dup-job", "Authoritative current copy");
+    seedDb.close();
+
+    const result = repairOpenClawStateDatabaseSchema({ env });
+    expect(result.warnings).toEqual([]);
+    // Guard: current key already had rows, so nothing is rekeyed/clobbered.
+    expect(result.changes.some((c) => c.includes("Rekeyed"))).toBe(false);
+
+    const readDb = new DatabaseSync(databasePath);
+    const current = readDb
+      .prepare("SELECT name FROM cron_jobs WHERE store_key = ? AND job_id = ?")
+      .get(currentKey, "dup-job") as { name: string };
+    readDb.close();
+
+    // The authoritative current copy is untouched.
+    expect(current.name).toBe("Authoritative current copy");
+
+    fs.rmSync(root, { recursive: true, force: true });
   });
 });

@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
+import { cronStoreKey } from "../cron/store/key.js";
 import {
   clearNodeSqliteKyselyCacheForDatabase,
   executeSqliteQuerySync,
@@ -17,6 +18,7 @@ import {
   type SqliteWalMaintenance,
 } from "../infra/sqlite-wal.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
+import { resolveConfigDir } from "../utils.js";
 import type { DB as OpenClawStateKyselyDatabase } from "./openclaw-state-db.generated.js";
 import {
   resolveOpenClawStateSqliteDir,
@@ -272,6 +274,86 @@ export function detectOpenClawStateDatabaseSchemaMigrations(
   }
 }
 
+/**
+ * Path-keyed tables whose primary/lookup key embeds the resolved config-dir
+ * absolute path (via cronStoreKey(path.resolve(resolveConfigDir()+"/cron/jobs.json"))).
+ * When the config root shifts (e.g. a rebase flipping ~/.sybilclaw <-> ~/.openclaw),
+ * these rows are orphaned under a stale store_key while living in the SAME DB file.
+ * Add one entry here to cover any future path-keyed table.
+ */
+const PATH_KEYED_STORE_TABLES: ReadonlyArray<{ table: string; keyColumn: string }> = [
+  { table: "cron_jobs", keyColumn: "store_key" },
+  { table: "cron_run_logs", keyColumn: "store_key" },
+];
+
+/**
+ * Known config-dir root basenames across the fork's rename history. Legacy store
+ * keys are derived by swapping ONLY the last path segment of the current config
+ * dir among these, never by string-replacing arbitrary path substrings.
+ */
+const CONFIG_DIR_ROOT_BASENAMES = [".sybilclaw", ".openclaw", ".clawdbot"] as const;
+
+/**
+ * Computes the current cron store_key and the set of legacy store_keys that a
+ * config-root rename would have produced, by swapping the last path segment of
+ * the resolved config dir among the known root basenames.
+ *
+ * Returns null when the config dir does not end in a known root basename (custom
+ * override) so we never guess/rewrite non-default installs.
+ */
+function resolveCronStoreKeyMigration(
+  env: NodeJS.ProcessEnv,
+): { currentKey: string; legacyKeys: string[] } | null {
+  const configDir = resolveConfigDir(env);
+  const parent = path.dirname(configDir);
+  const base = path.basename(configDir);
+  if (!CONFIG_DIR_ROOT_BASENAMES.includes(base as (typeof CONFIG_DIR_ROOT_BASENAMES)[number])) {
+    return null;
+  }
+  const keyForRoot = (rootBasename: string): string =>
+    cronStoreKey(path.join(parent, rootBasename, "cron", "jobs.json"));
+  const currentKey = keyForRoot(base);
+  const legacyKeys = CONFIG_DIR_ROOT_BASENAMES.filter((name) => name !== base).map(keyForRoot);
+  return { currentKey, legacyKeys };
+}
+
+/**
+ * Idempotent, collision-safe in-DB rekey: heals path-keyed rows orphaned when the
+ * config root shifted. For each legacy store_key, rekeys rows to the current key
+ * ONLY when the current key has no existing rows for that partition (guard against
+ * clobbering a live, correct store). Same-file UPDATE; running twice is a no-op.
+ */
+function rekeyOrphanedPathKeyedStores(db: DatabaseSync, env: NodeJS.ProcessEnv): number {
+  const migration = resolveCronStoreKeyMigration(env);
+  if (!migration) {
+    return 0;
+  }
+  const { currentKey, legacyKeys } = migration;
+  let rekeyed = 0;
+  for (const { table, keyColumn } of PATH_KEYED_STORE_TABLES) {
+    if (!tableExists(db, table) || !tableHasColumn(db, table, keyColumn)) {
+      continue;
+    }
+    // Guard: only rekey into the current key when it holds no rows yet, so a
+    // partially-populated current store is never overwritten. UPDATE OR IGNORE
+    // additionally protects against PK collisions on any residual overlap.
+    const update = db.prepare(
+      `UPDATE OR IGNORE ${table}
+          SET ${keyColumn} = :currentKey
+        WHERE ${keyColumn} = :legacyKey
+          AND NOT EXISTS (SELECT 1 FROM ${table} t2 WHERE t2.${keyColumn} = :currentKey)`,
+    );
+    for (const legacyKey of legacyKeys) {
+      if (legacyKey === currentKey) {
+        continue;
+      }
+      const result = update.run({ currentKey, legacyKey });
+      rekeyed += Number(result.changes ?? 0);
+    }
+  }
+  return rekeyed;
+}
+
 export function repairOpenClawStateDatabaseSchema(options: OpenClawStateDatabaseOptions = {}): {
   changes: string[];
   warnings: string[];
@@ -287,15 +369,33 @@ export function repairOpenClawStateDatabaseSchema(options: OpenClawStateDatabase
   db.exec(`PRAGMA busy_timeout = ${OPENCLAW_SQLITE_BUSY_TIMEOUT_MS};`);
   try {
     assertSupportedSchemaVersion(db, pathname);
-    const repaired = runSqliteImmediateTransactionSync(db, () =>
-      repairAgentDatabasesCompositePrimaryKey(db),
-    );
-    return repaired
-      ? {
-          changes: [`Migrated shared state agent database registry primary key → agent_id,path`],
-          warnings: [],
-        }
-      : { changes: [], warnings: [] };
+    const result = runSqliteImmediateTransactionSync(db, () => {
+      const repaired = repairAgentDatabasesCompositePrimaryKey(db);
+      let rekeyed = 0;
+      try {
+        rekeyed = rekeyOrphanedPathKeyedStores(db, env);
+      } catch (rekeyErr) {
+        // Defensive: a rekey failure must never crash gateway boot. Surface as a
+        // warning and leave the other repairs intact.
+        return { repaired, rekeyed: 0, warning: String(rekeyErr) };
+      }
+      return { repaired, rekeyed, warning: undefined as string | undefined };
+    });
+    const changes: string[] = [];
+    if (result.repaired) {
+      changes.push(`Migrated shared state agent database registry primary key → agent_id,path`);
+    }
+    if (result.rekeyed > 0) {
+      changes.push(
+        `Rekeyed ${result.rekeyed} orphaned path-keyed store row(s) to the current config root`,
+      );
+    }
+    return {
+      changes,
+      warnings: result.warning
+        ? [`Failed rekeying orphaned path-keyed store rows at ${pathname}: ${result.warning}`]
+        : [],
+    };
   } catch (err) {
     return {
       changes: [],
