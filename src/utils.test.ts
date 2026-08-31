@@ -75,6 +75,42 @@ describe("resolveConfigDir", () => {
     expect(resolveConfigDir(env)).toBe(path.resolve("/tmp/openclaw-home", "state"));
   });
 
+  it("honors SYBILCLAW_STATE_DIR over OPENCLAW_STATE_DIR (fork awareness)", () => {
+    const env = {
+      HOME: "/tmp/openclaw-home",
+      SYBILCLAW_STATE_DIR: "~/sybil-state",
+      OPENCLAW_STATE_DIR: "~/state",
+    } as NodeJS.ProcessEnv;
+
+    expect(resolveConfigDir(env)).toBe(path.resolve("/tmp/openclaw-home", "sybil-state"));
+  });
+
+  it("honors SYBILCLAW_CONFIG_PATH over OPENCLAW_CONFIG_PATH (fork awareness)", () => {
+    const env = {
+      HOME: "/tmp/openclaw-home",
+      SYBILCLAW_CONFIG_PATH: "~/profiles/sybil/sybilclaw.json",
+      OPENCLAW_CONFIG_PATH: "~/profiles/dev/openclaw.json",
+    } as NodeJS.ProcessEnv;
+
+    expect(resolveConfigDir(env)).toBe(path.resolve("/tmp/openclaw-home", "profiles", "sybil"));
+  });
+
+  it("defaults to ~/.sybilclaw under the fork default when it exists", async () => {
+    await withTempDir({ prefix: "sybilclaw-config-dir-" }, async (root) => {
+      const sybilDir = path.join(root, ".sybilclaw");
+      await fs.promises.mkdir(sybilDir, { recursive: true });
+      const resolved = resolveConfigDir({} as NodeJS.ProcessEnv, () => root);
+      expect(resolved).toBe(sybilDir);
+    });
+  });
+
+  it("defaults to a fresh ~/.sybilclaw root when no state dir exists", async () => {
+    await withTempDir({ prefix: "sybilclaw-fresh-config-dir-" }, async (root) => {
+      const resolved = resolveConfigDir({} as NodeJS.ProcessEnv, () => root);
+      expect(resolved).toBe(path.join(root, ".sybilclaw"));
+    });
+  });
+
   it("falls back to the config file directory when only OPENCLAW_CONFIG_PATH is set", () => {
     const env = {
       HOME: "/tmp/openclaw-home",

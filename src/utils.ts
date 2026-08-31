@@ -2,12 +2,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolveStateDir } from "./config/paths.js";
 import { pathExists as fsSafePathExists } from "./infra/fs-safe.js";
-import {
-  resolveEffectiveHomeDir,
-  resolveHomeRelativePath,
-  resolveRequiredHomeDir,
-} from "./infra/home-dir.js";
+import { resolveEffectiveHomeDir, resolveHomeRelativePath } from "./infra/home-dir.js";
 import { isPlainObject } from "./infra/plain-object.js";
 import { resolveTimerTimeoutMs } from "./shared/number-coercion.js";
 export { escapeRegExp } from "./shared/regexp.js";
@@ -128,29 +125,35 @@ export function resolveUserPath(
   return resolveHomeRelativePath(input, { env, homedir });
 }
 
-/** Resolves the OpenClaw config directory from state/config env overrides or home. */
+/**
+ * Resolves the OpenClaw config directory from state/config env overrides or home.
+ *
+ * SybilClaw: this must honor SYBILCLAW_* env vars first (falling back to
+ * OPENCLAW_* for backward compatibility) and default to ~/.sybilclaw, otherwise
+ * the cron store_key (path.resolve(resolveConfigDir()+"/cron/jobs.json")) diverges
+ * from the DB file root and cron jobs are orphaned. See regression 7574333c232.
+ *
+ * The STATE_DIR override + default-root selection is delegated to the single
+ * source of truth `resolveStateDir` in config/paths.ts so the two systems can't
+ * silently diverge again on a future rebase. Only the SYBILCLAW_CONFIG_PATH /
+ * OPENCLAW_CONFIG_PATH -> path.dirname() branch (which resolveStateDir does not
+ * model) is retained locally.
+ */
 export function resolveConfigDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string {
-  const override = env.OPENCLAW_STATE_DIR?.trim();
-  if (override) {
-    return resolveUserPath(override, env, homedir);
+  const stateOverride = env.SYBILCLAW_STATE_DIR?.trim() || env.OPENCLAW_STATE_DIR?.trim();
+  if (stateOverride) {
+    return resolveUserPath(stateOverride, env, homedir);
   }
-  const configPath = env.OPENCLAW_CONFIG_PATH?.trim();
+  const configPath = env.SYBILCLAW_CONFIG_PATH?.trim() || env.OPENCLAW_CONFIG_PATH?.trim();
   if (configPath) {
     return path.dirname(resolveUserPath(configPath, env, homedir));
   }
-  const newDir = path.join(resolveRequiredHomeDir(env, homedir), ".openclaw");
-  try {
-    const hasNew = fs.existsSync(newDir);
-    if (hasNew) {
-      return newDir;
-    }
-  } catch {
-    // best-effort
-  }
-  return newDir;
+  // Delegate default-root selection (~/.sybilclaw with .openclaw/.clawdbot legacy
+  // fallback) to resolveStateDir so both path systems agree by construction.
+  return resolveStateDir(env, homedir);
 }
 
 /** Resolves the effective OpenClaw home directory, if one can be determined. */
