@@ -294,13 +294,13 @@ Update your `openclaw.json` with the multi-user configuration shown above.
 
 ```bash
 # Start gateway
-openclaw gateway run
+sybilclaw gateway run
 
 # Test Alice's agent
-openclaw message send --agent agent-alice "Hello!"
+sybilclaw message send --agent agent-alice "Hello!"
 
 # Test Bob's agent
-openclaw message send --agent agent-bob "Hello!"
+sybilclaw message send --agent agent-bob "Hello!"
 ```
 
 Each agent should have access to:
