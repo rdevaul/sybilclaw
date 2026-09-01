@@ -1,0 +1,19 @@
+# Runtime-only image for smoke testing — layers the pre-built native dist onto
+# the same slim base the real Dockerfile uses. Avoids the memory-heavy in-container
+# build. For TEST validation only, not release.
+FROM docker.io/library/node:24-bookworm-slim@sha256:242549cd46785b480c832479a730f4f2a20865d61ea2e404fdb2a5c3d3b73ecf
+ENV NODE_ENV=production
+ENV HOME=/home/node
+ENV OPENCLAW_STATE_DIR=/home/node/.openclaw
+ENV OPENCLAW_CONFIG_DIR=/home/node/.openclaw
+ENV OPENCLAW_CONFIG_PATH=/home/node/.openclaw/openclaw.json
+ENV OPENCLAW_WORKSPACE_DIR=/home/node/.openclaw/workspace
+WORKDIR /app
+COPY --chown=node:node dist ./dist
+COPY --chown=node:node node_modules ./node_modules
+COPY --chown=node:node package.json ./package.json
+COPY --chown=node:node pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --chown=node:node patches ./patches
+USER node
+RUN mkdir -p /home/node/.openclaw/workspace
+ENTRYPOINT ["node", "dist/index.js"]
