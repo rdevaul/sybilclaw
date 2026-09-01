@@ -1,4 +1,4 @@
-> **SybilClaw Architecture Document** — This document describes the ContextGraph plugin architecture used by SybilClaw for tag-based hierarchical context management. The plugin lives in `extensions/contextgraph/`.
+> **SybilClaw Architecture Document** — This document describes the ContextGraph plugin architecture used by SybilClaw for tag-based hierarchical context management. ContextGraph ships as a **separate, optional component** — it is _not_ bundled in the SybilClaw npm package. Once installed, the Node bridge plugin lives in your user state directory at `~/.sybilclaw/extensions/contextgraph/`. See **[Installing the context graph](#installing-the-context-graph)** below for setup.
 
 # Tag-Based Hierarchical Context Management System
 
@@ -542,4 +542,93 @@ should converge to better-than-either.
 ---
 
 _This document is a living design artifact. Update it as decisions are made._
-_Repo: TBD — likely `~/Projects/tag-context/`_
+
+---
+
+## Installing the context graph
+
+The context graph is **not bundled** with the SybilClaw npm package and is **not**
+an npm dependency. It is an optional, separately-installed component made of two
+parts:
+
+1. **A Python FastAPI server** (the `contextgraph` project) that stores the DAG
+   and serves the context-assembly API on **`http://localhost:8302`**.
+2. **A Node bridge plugin** (`openclaw-plugin-contextgraph`) that SybilClaw loads
+   as an extension. It implements the `ContextEngine` interface and forwards
+   per-turn context assembly to the Python server.
+
+Graph mode is **OFF by default** and is enabled per user with `/graph on`. The
+plugin depends on SybilClaw's `ContextEngine.ownsCompactionForSession()` hook —
+a SybilClaw-only capability (vanilla OpenClaw does not implement it yet), which
+is why active retrieval only engages on this fork.
+
+> The context graph lives in its own repository. Substitute its path for
+> `<contextgraph-repo>` in the steps below. If you do not have access to the
+> repository, the two components above describe everything the plugin needs;
+> nothing about the context graph is required for a standard SybilClaw install.
+
+### 1. Run the Python API server
+
+From the contextgraph repo:
+
+```bash
+cd <contextgraph-repo>
+pip install -r requirements.txt
+```
+
+The server listens on port **8302**. On this machine it runs as a launchd
+service (`com.contextgraph.api` / `tag-context`) so it survives reboots; a
+service template is provided at `service/com.contextgraph.api.plist.template`
+and an installer at `scripts/install-service.sh`. Verify it is up:
+
+```bash
+curl http://localhost:8302/health
+```
+
+### 2. Install the Node bridge plugin
+
+SybilClaw auto-loads plugins from `~/.sybilclaw/extensions/`. From the
+contextgraph repo's `plugin/` directory:
+
+```bash
+# Check it is not already installed (avoids a duplicate-registration crash-loop)
+sybilclaw plugins list | grep contextgraph
+
+# Copy the plugin into the SybilClaw extensions dir
+mkdir -p ~/.sybilclaw/extensions/contextgraph
+cp plugin/index.ts plugin/openclaw.plugin.json plugin/package.json \
+   ~/.sybilclaw/extensions/contextgraph/
+```
+
+Do **not** add the plugin to `sybilclaw.json` under `plugins.allow` /
+`plugins.entries` — auto-loading from `~/.sybilclaw/extensions/` is the only
+supported install path, and adding it to config while it is already auto-loaded
+will crash the gateway with a duplicate-registration error.
+
+### 3. Reload the gateway
+
+```bash
+sybilclaw gateway reload
+```
+
+Use `reload` (hot-swap, keeps active sessions) rather than `restart` unless the
+gateway is completely dead. Then confirm the plugin loaded:
+
+```bash
+sybilclaw plugins list | grep contextgraph
+# Should show: loaded   global:contextgraph/index.ts
+```
+
+### 4. Enable graph mode (per user)
+
+Graph mode is off until a user turns it on:
+
+- `/graph on` — enable graph-based context assembly
+- `/graph off` — revert to linear windowing
+- `/graph` — show current status
+
+> Source: the contextgraph project's `plugin/README.md` (install/toggle steps),
+> its top-level `README.md` (Python server / port 8302 / launchd service), and
+> `INTEGRATION.md` (memory-harvester + context-injector bridge scripts). Commands
+> above use the `sybilclaw` CLI; the plugin's own README uses `openclaw`, which
+> resolves on this fork via the compatibility alias.

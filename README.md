@@ -65,7 +65,7 @@ Context windows are finite. Most AI assistants either forget everything between 
 ### SybilClaw Quick Links
 
 - [Multi-user setup guide](docs/sybilclaw/multi-user-setup.md) — configure per-user agents with isolated memory
-- [Context graph architecture](docs/sybilclaw/context-graph-architecture.md) — tag-based context management system
+- [Context graph architecture](docs/sybilclaw/context-graph-architecture.md) — tag-based context management system. **Note:** the context graph is an optional, separately-installed component (a Python API server + a Node bridge plugin), not bundled in the npm package — see [Installing the context graph](docs/sybilclaw/context-graph-architecture.md#installing-the-context-graph).
 - **Key config:** `agents.<agentId>.memoryFile` — path to per-user MEMORY.md (relative to workspace or absolute)
 - **Migration:** [Migrating from OpenClaw](docs/sybilclaw/migrating-to-sybilclaw.md) — step-by-step guide for existing OpenClaw users
 
