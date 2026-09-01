@@ -168,6 +168,7 @@
     "!docs/images/**",
     "!docs/**/*.jpg",
     "!docs/**/*.png",
+    "docs/assets/sybilclaw-logo.jpg",
     "src/agents/templates/",
     "scripts/crabbox-wrapper.mjs",
     "patches/",

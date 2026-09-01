@@ -3,12 +3,10 @@
 _A security-first fork of [OpenClaw](https://github.com/openclaw/openclaw) for households, research teams, and small organizations. We don't YOLO upstream changes — every merge is screened for security and stability._
 
 <p align="center">
-    <img src="docs/assets/sybilclaw-logo.png" alt="SybilClaw" width="200">
+    <img src="docs/assets/sybilclaw-logo.jpg" alt="SybilClaw" width="200">
 </p>
 
 <p align="center">
-  <a href="https://github.com/openclaw/openclaw/actions/workflows/ci.yml?branch=main"><img src="https://img.shields.io/github/actions/workflow/status/openclaw/openclaw/ci.yml?branch=main&style=for-the-badge" alt="CI status"></a>
-  <a href="https://github.com/openclaw/openclaw/releases"><img src="https://img.shields.io/github/v/release/openclaw/openclaw?include_prereleases&style=for-the-badge" alt="GitHub release"></a>
   <a href="https://discord.gg/clawd"><img src="https://img.shields.io/discord/1456350064065904867?label=Discord&logo=discord&logoColor=white&color=5865F2&style=for-the-badge" alt="Discord"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
