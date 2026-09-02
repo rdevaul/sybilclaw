@@ -562,17 +562,18 @@ plugin depends on SybilClaw's `ContextEngine.ownsCompactionForSession()` hook â€
 a SybilClaw-only capability (vanilla OpenClaw does not implement it yet), which
 is why active retrieval only engages on this fork.
 
-> The context graph lives in its own repository. Substitute its path for
-> `<contextgraph-repo>` in the steps below. If you do not have access to the
-> repository, the two components above describe everything the plugin needs;
-> nothing about the context graph is required for a standard SybilClaw install.
+> The context graph lives in its own repository:
+> **<https://github.com/rdevaul/contextgraph>**. Clone it alongside SybilClaw
+> and follow the steps below. Nothing about the context graph is required for a
+> standard SybilClaw install â€” it is an optional, opt-in enhancement.
 
 ### 1. Run the Python API server
 
-From the contextgraph repo:
+Clone the contextgraph repository and install its dependencies:
 
 ```bash
-cd <contextgraph-repo>
+git clone https://github.com/rdevaul/contextgraph.git
+cd contextgraph
 pip install -r requirements.txt
 ```
 
