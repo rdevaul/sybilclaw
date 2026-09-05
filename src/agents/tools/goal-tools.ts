@@ -138,12 +138,23 @@ export function createUpdateGoalTool(options: GoalToolOptions): AnyAgentTool {
         );
       }
       const note = readStringParam(params, "note");
-      const goal = await updateSessionGoalStatus({
-        ...resolveGoalSessionScope(options),
-        status: status as (typeof MODEL_UPDATABLE_SESSION_GOAL_STATUSES)[number],
-        ...(note ? { note } : {}),
-      });
-      return jsonResult({ status: "updated", goal });
+      try {
+        const goal = await updateSessionGoalStatus({
+          ...resolveGoalSessionScope(options),
+          status: status as (typeof MODEL_UPDATABLE_SESSION_GOAL_STATUSES)[number],
+          ...(note ? { note } : {}),
+        });
+        return jsonResult({ status: "updated", goal });
+      } catch (err) {
+        // Isolated sessions (e.g. cron agentTurn runs) may not have an active
+        // goal. Return a graceful no-op instead of surfacing a tool error that
+        // contaminates the run's diagnostic summary.
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === "goal not found") {
+          return jsonResult({ status: "no_goal", note: "No active goal in this session." });
+        }
+        throw err;
+      }
     },
   };
 }
