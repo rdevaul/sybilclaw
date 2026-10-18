@@ -18,6 +18,10 @@ const restartLogMocks = vi.hoisted(() => ({
   resolveGatewayRestartLogPath: vi.fn<() => string>(() => "/tmp/gateway-restart.log"),
 }));
 
+const launchdMocks = vi.hoisted(() => ({
+  isGatewayStderrCaptured: vi.fn<() => Promise<boolean>>(async () => false),
+}));
+
 const gatewayMocks = vi.hoisted(() => ({
   readFileTailLines: vi.fn<(filePath: string, maxLines: number) => Promise<string[]>>(
     async () => [],
@@ -31,6 +35,10 @@ vi.mock("../../daemon/restart-logs.js", () => ({
   resolveGatewayLogPaths: restartLogMocks.resolveGatewayLogPaths,
   resolveGatewaySupervisorLogPaths: restartLogMocks.resolveGatewaySupervisorLogPaths,
   resolveGatewayRestartLogPath: restartLogMocks.resolveGatewayRestartLogPath,
+}));
+
+vi.mock("../../daemon/launchd.js", () => ({
+  isGatewayStderrCaptured: launchdMocks.isGatewayStderrCaptured,
 }));
 
 vi.mock("./gateway.js", () => ({
@@ -90,6 +98,18 @@ function createBaseParams(
 
 describe("status-all diagnosis port checks", () => {
   beforeEach(() => {
+    // Clear call history, not just implementations: assertions such as
+    // not.toHaveBeenCalledWith read recorded calls, which otherwise leak
+    // between tests in this file.
+    for (const mock of [
+      restartLogMocks.resolveGatewayLogPaths,
+      restartLogMocks.resolveGatewaySupervisorLogPaths,
+      restartLogMocks.resolveGatewayRestartLogPath,
+      gatewayMocks.readFileTailLines,
+      gatewayMocks.summarizeLogTail,
+    ]) {
+      mock.mockClear();
+    }
     restartLogMocks.resolveGatewayLogPaths.mockImplementation(() => {
       throw new Error("skip log tail");
     });
@@ -98,6 +118,8 @@ describe("status-all diagnosis port checks", () => {
     });
     restartLogMocks.resolveGatewayRestartLogPath.mockReturnValue("/tmp/gateway-restart.log");
     gatewayMocks.readFileTailLines.mockResolvedValue([]);
+    launchdMocks.isGatewayStderrCaptured.mockReset();
+    launchdMocks.isGatewayStderrCaptured.mockResolvedValue(false);
     gatewayMocks.summarizeLogTail.mockImplementation((lines: string[]) => lines);
   });
 
@@ -389,6 +411,7 @@ describe("status-all diagnosis port checks", () => {
     const originalPlatform = process.platform;
     Object.defineProperty(process, "platform", { value: "darwin" });
     try {
+      launchdMocks.isGatewayStderrCaptured.mockResolvedValue(true);
       restartLogMocks.resolveGatewaySupervisorLogPaths.mockReturnValue({
         logDir: "/Users/test/Library/Logs/openclaw",
         stdoutPath: "/Users/test/Library/Logs/openclaw/gateway.log",
@@ -515,6 +538,52 @@ describe("status-all diagnosis port checks", () => {
       expect(output).toContain("in-process SIGUSR1 reloads are not listed here");
     } finally {
       nowSpy.mockRestore();
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+    }
+  });
+
+  it("suppresses orphaned stderr tails during the upgrade window on Darwin", async () => {
+    // An older install may leave gateway.err.log on disk while the installed
+    // plist still directs stderr to /dev/null. That content predates the
+    // running service and must not be presented as current.
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    try {
+      launchdMocks.isGatewayStderrCaptured.mockResolvedValue(false);
+      restartLogMocks.resolveGatewaySupervisorLogPaths.mockReturnValue({
+        logDir: "/Users/test/Library/Logs/openclaw",
+        stdoutPath: "/Users/test/Library/Logs/openclaw/gateway.log",
+        stderrPath: "/Users/test/Library/Logs/openclaw/gateway.err.log",
+      });
+      restartLogMocks.resolveGatewayRestartLogPath.mockReturnValue(
+        "/tmp/openclaw-state/logs/gateway-restart.log",
+      );
+      gatewayMocks.readFileTailLines.mockImplementation(async (filePath: string) => {
+        if (filePath.endsWith("gateway.log")) {
+          return ["gateway stdout current"];
+        }
+        if (filePath.endsWith("gateway.err.log")) {
+          return ["pre-upgrade gateway socket failure"];
+        }
+        return [];
+      });
+      const params = createBaseParams([]);
+
+      await appendStatusAllDiagnosis(params);
+
+      const output = params.lines.join("\n");
+      expect(launchdMocks.isGatewayStderrCaptured).toHaveBeenCalledWith(
+        process.env,
+        "/Users/test/Library/Logs/openclaw/gateway.err.log",
+      );
+      expect(gatewayMocks.readFileTailLines).not.toHaveBeenCalledWith(
+        "/Users/test/Library/Logs/openclaw/gateway.err.log",
+        40,
+      );
+      expect(output).not.toContain("# stderr:");
+      expect(output).not.toContain("pre-upgrade gateway socket failure");
+      expect(output).toContain("gateway stdout current");
+    } finally {
       Object.defineProperty(process, "platform", { value: originalPlatform });
     }
   });

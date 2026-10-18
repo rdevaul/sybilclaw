@@ -282,6 +282,33 @@ export function resolveLaunchAgentPlistPath(env: GatewayServiceEnv): string {
   return resolveLaunchAgentPlistPathForLabel(env, label);
 }
 
+const STANDARD_ERROR_PATH_PATTERN = /<key>StandardErrorPath<\/key>\s*<string>([^<]*)<\/string>/;
+
+/**
+ * Whether the installed LaunchAgent is configured to capture stderr into
+ * `stderrPath`.
+ *
+ * launchd writes stderr only where the plist directs it. During the upgrade
+ * window the installed plist can still hold `StandardErrorPath` /dev/null
+ * while an orphaned gateway.err.log from an older install sits on disk;
+ * reading that file would present pre-upgrade errors as current. Callers use
+ * this to decide whether stderr is attributable to the running service.
+ */
+export async function isGatewayStderrCaptured(
+  env: GatewayServiceEnv,
+  stderrPath: string,
+): Promise<boolean> {
+  const plist = await fs.readFile(resolveLaunchAgentPlistPath(env), "utf8").catch(() => "");
+  if (!plist) {
+    return false;
+  }
+  const target = STANDARD_ERROR_PATH_PATTERN.exec(plist)?.[1]?.trim();
+  if (!target || target === "/dev/null") {
+    return false;
+  }
+  return target === stderrPath;
+}
+
 function resolveLaunchAgentEnvironmentReadOptions(env: GatewayServiceEnv, label: string) {
   return {
     expectedEnvironmentWrapperPath: resolveLaunchAgentEnvWrapperPath(env, label),

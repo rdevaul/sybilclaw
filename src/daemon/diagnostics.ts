@@ -1,5 +1,6 @@
 /** Reads recent gateway service logs for actionable daemon restart diagnostics. */
 import fs from "node:fs/promises";
+import { isGatewayStderrCaptured } from "./launchd.js";
 import { resolveGatewayLogPaths, resolveGatewaySupervisorLogPaths } from "./restart-logs.js";
 
 // Error patterns worth surfacing from gateway service logs after failed starts.
@@ -38,7 +39,10 @@ export async function readLastGatewayErrorLine(
     platform === "darwin"
       ? resolveGatewaySupervisorLogPaths(env, { platform })
       : resolveGatewayLogPaths(env);
-  const stderrRaw = await fs.readFile(stderrPath, "utf8").catch(() => "");
+  // Gate darwin stderr on the installed plist: an orphaned gateway.err.log
+  // left by a pre-upgrade install must not be reported as current.
+  const stderrCaptured = platform !== "darwin" || (await isGatewayStderrCaptured(env, stderrPath));
+  const stderrRaw = stderrCaptured ? await fs.readFile(stderrPath, "utf8").catch(() => "") : "";
   const stdoutRaw = await fs.readFile(stdoutPath, "utf8").catch(() => "");
   // stderr is the strongest failure signal on non-darwin platforms, so place it
   // last and scan from the end: the most recent stderr error line then wins over
@@ -54,6 +58,9 @@ export async function readLastGatewayErrorLine(
     if (GATEWAY_LOG_ERROR_PATTERNS.some((pattern) => pattern.test(line))) {
       return line;
     }
+  }
+  if (!stderrCaptured) {
+    return await readLastLogLine(stdoutPath);
   }
   return (await readLastLogLine(stderrPath)) ?? (await readLastLogLine(stdoutPath));
 }
