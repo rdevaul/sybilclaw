@@ -48,6 +48,7 @@ const LAUNCH_AGENT_PRIVATE_DIR_MODE = 0o700;
 const LAUNCH_AGENT_ENV_FILE_MODE = 0o600;
 const LAUNCH_AGENT_ENV_WRAPPER_MODE = 0o700;
 const LAUNCH_AGENT_ENV_DIR_NAME = "service-env";
+const LAUNCH_AGENT_STDERR_PATH = "/dev/null";
 const OPENCLAW_UPDATE_LAUNCHD_LABEL_PREFIX = "ai.openclaw.update.";
 const OPENCLAW_MANUAL_UPDATE_LAUNCHD_LABEL_PATTERN = /^ai\.openclaw\.manual-update\.\d+$/;
 const LAUNCH_AGENT_STOP_PORT_RELEASE_TIMEOUT_MS = LAUNCH_AGENT_EXIT_TIMEOUT_SECONDS * 1_000;
@@ -280,33 +281,6 @@ async function prepareLaunchAgentProgramArguments(params: {
 export function resolveLaunchAgentPlistPath(env: GatewayServiceEnv): string {
   const label = resolveLaunchAgentLabel({ env });
   return resolveLaunchAgentPlistPathForLabel(env, label);
-}
-
-const STANDARD_ERROR_PATH_PATTERN = /<key>StandardErrorPath<\/key>\s*<string>([^<]*)<\/string>/;
-
-/**
- * Whether the installed LaunchAgent is configured to capture stderr into
- * `stderrPath`.
- *
- * launchd writes stderr only where the plist directs it. During the upgrade
- * window the installed plist can still hold `StandardErrorPath` /dev/null
- * while an orphaned gateway.err.log from an older install sits on disk;
- * reading that file would present pre-upgrade errors as current. Callers use
- * this to decide whether stderr is attributable to the running service.
- */
-export async function isGatewayStderrCaptured(
-  env: GatewayServiceEnv,
-  stderrPath: string,
-): Promise<boolean> {
-  const plist = await fs.readFile(resolveLaunchAgentPlistPath(env), "utf8").catch(() => "");
-  if (!plist) {
-    return false;
-  }
-  const target = STANDARD_ERROR_PATH_PATTERN.exec(plist)?.[1]?.trim();
-  if (!target || target === "/dev/null") {
-    return false;
-  }
-  return target === stderrPath;
 }
 
 function resolveLaunchAgentEnvironmentReadOptions(env: GatewayServiceEnv, label: string) {
@@ -958,9 +932,7 @@ async function writeLaunchAgentPlist({
   stdout,
   warn,
 }: GatewayServiceInstallArgs): Promise<{ plistPath: string; stdoutPath: string }> {
-  const { logDir, stdoutPath, stderrPath } = resolveGatewaySupervisorLogPaths(env, {
-    platform: "darwin",
-  });
+  const { logDir, stdoutPath } = resolveGatewaySupervisorLogPaths(env, { platform: "darwin" });
   await ensureSecureDirectory(logDir);
 
   const domain = resolveGuiDomain();
@@ -999,7 +971,7 @@ async function writeLaunchAgentPlist({
     programArguments: prepared.programArguments,
     workingDirectory,
     stdoutPath,
-    stderrPath,
+    stderrPath: LAUNCH_AGENT_STDERR_PATH,
     environment: prepared.inlineEnvironment,
   });
   await fs.writeFile(plistPath, plist, { encoding: "utf8", mode: LAUNCH_AGENT_PLIST_MODE });
@@ -1078,9 +1050,7 @@ async function rewriteLaunchAgentPlistForRestart({
     return false;
   }
 
-  const { logDir, stdoutPath, stderrPath } = resolveGatewaySupervisorLogPaths(env, {
-    platform: "darwin",
-  });
+  const { logDir, stdoutPath } = resolveGatewaySupervisorLogPaths(env, { platform: "darwin" });
   await ensureSecureDirectory(logDir);
 
   const serviceDescription = resolveGatewayServiceDescription({
@@ -1101,7 +1071,7 @@ async function rewriteLaunchAgentPlistForRestart({
     programArguments: prepared.programArguments,
     workingDirectory: existing.workingDirectory,
     stdoutPath,
-    stderrPath,
+    stderrPath: LAUNCH_AGENT_STDERR_PATH,
     environment: prepared.inlineEnvironment,
   });
   const previousPlist = await fs.readFile(plistPath, "utf8").catch(() => "");

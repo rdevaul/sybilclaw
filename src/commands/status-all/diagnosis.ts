@@ -4,7 +4,6 @@
 import { normalizeOptionalString } from "@openclaw/normalization-core/string-coerce";
 import type { ProgressReporter } from "../../cli/progress.js";
 import { formatConfigIssueLine } from "../../config/issue-format.js";
-import { isGatewayStderrCaptured } from "../../daemon/launchd.js";
 import {
   resolveGatewayLogPaths,
   resolveGatewayRestartLogPath,
@@ -419,22 +418,16 @@ export async function appendStatusAllDiagnosis(params: {
   if (logPaths) {
     params.progress.setLabel("Reading logs…");
     const restartLogPath = resolveGatewayRestartLogPath(process.env);
-    // Only surface stderr the installed service is actually configured to
-    // capture; an orphaned pre-upgrade gateway.err.log is not current.
-    const stderrCaptured =
-      process.platform !== "darwin" ||
-      (await isGatewayStderrCaptured(process.env, logPaths.stderrPath));
+    const readStderr = process.platform !== "darwin";
     const [stderrTail, stdoutTail, restartTail] = await Promise.all([
-      stderrCaptured
-        ? readFileTailLines(logPaths.stderrPath, 40).catch(() => [])
-        : Promise.resolve([] as string[]),
+      readStderr ? readFileTailLines(logPaths.stderrPath, 40).catch(() => []) : [],
       readFileTailLines(logPaths.stdoutPath, 40).catch(() => []),
       readFileTailLines(restartLogPath, 30).catch(() => []),
     ]);
     if (stderrTail.length > 0 || stdoutTail.length > 0) {
       lines.push("");
       lines.push(muted(`Gateway logs (tail, summarized): ${logPaths.logDir}`));
-      if (stderrTail.length > 0) {
+      if (readStderr) {
         lines.push(`  ${muted(`# stderr: ${logPaths.stderrPath}`)}`);
         for (const line of summarizeLogTail(stderrTail, { maxLines: 22 }).map(redactSecrets)) {
           lines.push(`  ${muted(line)}`);
