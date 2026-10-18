@@ -29,7 +29,7 @@ import {
   formatUpdateRestartStatusValue,
 } from "../status-update-restart.ts";
 import type { NodeOnlyGatewayInfo } from "../status.node-mode.js";
-import { formatTimeAgo, redactSecrets } from "./format.js";
+import { formatRelativeTimestamp, formatTimeAgo, redactSecrets } from "./format.js";
 import { readFileTailLines, summarizeLogTail } from "./gateway.js";
 
 type ConfigIssueLike = { path: string; message: string };
@@ -131,6 +131,27 @@ function latestDeliveryEventAgeMs(snapshot: DeliveryDiagnosticsLike): number | n
       return typeof ts === "number" && Number.isFinite(ts) ? Math.max(max, ts) : max;
     }, 0);
   return latestTs > 0 ? Date.now() - latestTs : null;
+}
+
+const RESTART_LOG_LINE_TIMESTAMP = /^\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\]/;
+
+/**
+ * Newest restart timestamp recorded in a supervisor restart log tail.
+ * The ledger is append-only and lines are prefixed with an ISO-8601 UTC
+ * timestamp, so scanning backwards returns the newest parsable entry.
+ */
+function newestRestartLogTimestamp(lines: readonly string[]): number | null {
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const match = RESTART_LOG_LINE_TIMESTAMP.exec(lines[i] ?? "");
+    if (!match?.[1]) {
+      continue;
+    }
+    const parsed = Date.parse(match[1]);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
 }
 
 /** Appends config, gateway, channel, delivery, and log diagnostics to the status-all report. */
@@ -418,8 +439,21 @@ export async function appendStatusAllDiagnosis(params: {
       }
     }
     if (restartTail.length > 0) {
+      const newestRestartAt = newestRestartLogTimestamp(restartTail);
       lines.push("");
-      lines.push(muted(`Gateway restart attempts (tail): ${restartLogPath}`));
+      lines.push(
+        muted(
+          `Gateway supervisor restart handoffs (tail; last entry ${formatRelativeTimestamp(
+            newestRestartAt,
+            { dateFallback: true },
+          )}): ${restartLogPath}`,
+        ),
+      );
+      lines.push(
+        muted(
+          `  # records supervisor restarts only; in-process SIGUSR1 reloads are not listed here`,
+        ),
+      );
       for (const line of summarizeLogTail(restartTail, { maxLines: 16 }).map(redactSecrets)) {
         lines.push(`  ${muted(line)}`);
       }

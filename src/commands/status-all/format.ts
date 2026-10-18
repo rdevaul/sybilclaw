@@ -14,7 +14,7 @@ import { formatGitInstallLabel, type UpdateCheckResult } from "../../infra/updat
 import { VERSION } from "../../version.js";
 import { formatUpdateOneLiner, resolveUpdateAvailability } from "../status.update.js";
 
-export { formatTimeAgo } from "../../infra/format-time/format-relative.ts";
+export { formatRelativeTimestamp, formatTimeAgo } from "../../infra/format-time/format-relative.ts";
 
 export type StatusOverviewRow = {
   Item: string;
