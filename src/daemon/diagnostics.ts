@@ -31,14 +31,14 @@ export async function readLastGatewayErrorLine(
   options?: { platform?: NodeJS.Platform },
 ): Promise<string | null> {
   const platform = options?.platform ?? process.platform;
-  const readStderr = platform !== "darwin";
-  // launchd supervisor mode combines child stderr into stdout; other platforms
-  // keep stderr as the strongest failure signal.
+  // stderr is the strongest failure signal on every platform. launchd writes it
+  // to its own file (it does not merge it into stdout), so read it wherever it
+  // lands.
   const { stdoutPath, stderrPath } =
     platform === "darwin"
       ? resolveGatewaySupervisorLogPaths(env, { platform })
       : resolveGatewayLogPaths(env);
-  const stderrRaw = readStderr ? await fs.readFile(stderrPath, "utf8").catch(() => "") : "";
+  const stderrRaw = await fs.readFile(stderrPath, "utf8").catch(() => "");
   const stdoutRaw = await fs.readFile(stdoutPath, "utf8").catch(() => "");
   // stderr is the strongest failure signal on non-darwin platforms, so place it
   // last and scan from the end: the most recent stderr error line then wins over
@@ -55,7 +55,5 @@ export async function readLastGatewayErrorLine(
       return line;
     }
   }
-  return readStderr
-    ? ((await readLastLogLine(stderrPath)) ?? (await readLastLogLine(stdoutPath)))
-    : await readLastLogLine(stdoutPath);
+  return (await readLastLogLine(stderrPath)) ?? (await readLastLogLine(stdoutPath));
 }

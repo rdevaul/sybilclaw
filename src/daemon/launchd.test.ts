@@ -1062,7 +1062,9 @@ describe("launchd install", () => {
     expect(plist).toContain("<key>StandardOutPath</key>");
     expect(plist).toContain("<string>/Users/test/Library/Logs/openclaw/gateway.log</string>");
     expect(plist).toContain("<key>StandardErrorPath</key>");
-    expect(plist).toContain("<string>/dev/null</string>");
+    // launchd does not merge child stderr into stdout: stderr must land in its
+    // own file or gateway crash output is silently discarded.
+    expect(plist).toContain("<string>/Users/test/Library/Logs/openclaw/gateway.err.log</string>");
     expect(plist).toContain("<key>KeepAlive</key>");
     expect(plist).toContain("<string>node</string>");
     const rewriteIndex = state.fileWrites.findIndex((write) => write.path === plistPath);

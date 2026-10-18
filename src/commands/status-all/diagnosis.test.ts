@@ -115,7 +115,11 @@ describe("status-all diagnosis port checks", () => {
 
   it("treats same-process dual-stack loopback listeners as healthy", async () => {
     const params = createBaseParams([
-      { pid: 5001, commandLine: "openclaw-gateway", address: "127.0.0.1:18789" },
+      {
+        pid: 5001,
+        commandLine: "openclaw-gateway",
+        address: "127.0.0.1:18789",
+      },
       { pid: 5001, commandLine: "openclaw-gateway", address: "[::1]:18789" },
     ]);
 
@@ -142,7 +146,11 @@ describe("status-all diagnosis port checks", () => {
 
   it("keeps warning for multi-process listener conflicts", async () => {
     const params = createBaseParams([
-      { pid: 5001, commandLine: "openclaw-gateway", address: "127.0.0.1:18789" },
+      {
+        pid: 5001,
+        commandLine: "openclaw-gateway",
+        address: "127.0.0.1:18789",
+      },
       { pid: 5002, commandLine: "openclaw-gateway", address: "[::1]:18789" },
     ]);
 
@@ -375,7 +383,9 @@ describe("status-all diagnosis port checks", () => {
     expect(output).not.toContain("Inbound delivery telemetry: unavailable");
   });
 
-  it("does not read or display stale stderr tails on Darwin", async () => {
+  it("reads and displays launchd stderr tails on Darwin", async () => {
+    // launchd writes stderr to its own file (StandardErrorPath), so the stderr
+    // tail is live on Darwin too and must be surfaced.
     const originalPlatform = process.platform;
     Object.defineProperty(process, "platform", { value: "darwin" });
     try {
@@ -385,14 +395,14 @@ describe("status-all diagnosis port checks", () => {
         stderrPath: "/Users/test/Library/Logs/openclaw/gateway.err.log",
       });
       restartLogMocks.resolveGatewayRestartLogPath.mockReturnValue(
-        "/tmp/openclaw/logs/gateway-restart.log",
+        "/tmp/openclaw-state/logs/gateway-restart.log",
       );
       gatewayMocks.readFileTailLines.mockImplementation(async (filePath: string) => {
         if (filePath.endsWith("gateway.log")) {
           return ["gateway stdout current"];
         }
         if (filePath.endsWith("gateway.err.log")) {
-          return ["failed to bind gateway socket stale"];
+          return ["failed to bind gateway socket"];
         }
         return [];
       });
@@ -401,15 +411,110 @@ describe("status-all diagnosis port checks", () => {
       await appendStatusAllDiagnosis(params);
 
       const output = params.lines.join("\n");
-      expect(gatewayMocks.readFileTailLines).not.toHaveBeenCalledWith(
+      expect(gatewayMocks.readFileTailLines).toHaveBeenCalledWith(
         "/Users/test/Library/Logs/openclaw/gateway.err.log",
         40,
       );
+      expect(output).toContain("# stderr: /Users/test/Library/Logs/openclaw/gateway.err.log");
+      expect(output).toContain("failed to bind gateway socket");
       expect(output).toContain("# stdout: /Users/test/Library/Logs/openclaw/gateway.log");
       expect(output).toContain("gateway stdout current");
-      expect(output).not.toContain("# stderr:");
-      expect(output).not.toContain("failed to bind gateway socket stale");
     } finally {
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+    }
+  });
+
+  it("resolves the restart ledger under the state dir on Darwin", async () => {
+    // The launchd restart handoff script writes gateway-restart.log to the state
+    // dir via renderPosixRestartLogSetup, so the reader must use the same path.
+    // Platform-switching this path would point diagnostics at a file that is
+    // never written.
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    try {
+      restartLogMocks.resolveGatewaySupervisorLogPaths.mockReturnValue({
+        logDir: "/Users/test/Library/Logs/openclaw",
+        stdoutPath: "/Users/test/Library/Logs/openclaw/gateway.log",
+        stderrPath: "/Users/test/Library/Logs/openclaw/gateway.err.log",
+      });
+      restartLogMocks.resolveGatewayRestartLogPath.mockReturnValue(
+        "/tmp/openclaw-state/logs/gateway-restart.log",
+      );
+      gatewayMocks.readFileTailLines.mockImplementation(async (filePath: string) =>
+        filePath.endsWith("gateway-restart.log")
+          ? ["[2026-10-18T16:55:00Z] openclaw restart done source=launchd-handoff mode=kickstart"]
+          : [],
+      );
+      const params = createBaseParams([]);
+
+      await appendStatusAllDiagnosis(params);
+
+      const output = params.lines.join("\n");
+      expect(restartLogMocks.resolveGatewayRestartLogPath).toHaveBeenCalled();
+      expect(output).toContain("/tmp/openclaw-state/logs/gateway-restart.log");
+    } finally {
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+    }
+  });
+
+  it("labels a fresh supervisor restart ledger with its newest entry", async () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-18T17:00:00Z"));
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    try {
+      restartLogMocks.resolveGatewaySupervisorLogPaths.mockReturnValue({
+        logDir: "/Users/test/Library/Logs/openclaw",
+        stdoutPath: "/Users/test/Library/Logs/openclaw/gateway.log",
+        stderrPath: "/Users/test/Library/Logs/openclaw/gateway.err.log",
+      });
+      restartLogMocks.resolveGatewayRestartLogPath.mockReturnValue(
+        "/tmp/openclaw-state/logs/gateway-restart.log",
+      );
+      gatewayMocks.readFileTailLines.mockImplementation(async (filePath: string) =>
+        filePath.endsWith("gateway-restart.log")
+          ? ["[2026-10-18T16:55:00Z] openclaw restart done source=launchd-handoff mode=kickstart"]
+          : [],
+      );
+      const params = createBaseParams([]);
+
+      await appendStatusAllDiagnosis(params);
+
+      const output = params.lines.join("\n");
+      expect(output).toContain("Gateway supervisor restart handoffs (tail; last entry 5m ago)");
+    } finally {
+      nowSpy.mockRestore();
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+    }
+  });
+
+  it("marks an old supervisor restart ledger as historical and scopes it to supervisor restarts", async () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-18T17:00:00Z"));
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    try {
+      restartLogMocks.resolveGatewaySupervisorLogPaths.mockReturnValue({
+        logDir: "/Users/test/Library/Logs/openclaw",
+        stdoutPath: "/Users/test/Library/Logs/openclaw/gateway.log",
+        stderrPath: "/Users/test/Library/Logs/openclaw/gateway.err.log",
+      });
+      restartLogMocks.resolveGatewayRestartLogPath.mockReturnValue(
+        "/tmp/openclaw-state/logs/gateway-restart.log",
+      );
+      gatewayMocks.readFileTailLines.mockImplementation(async (filePath: string) =>
+        filePath.endsWith("gateway-restart.log")
+          ? ["[2026-09-01T17:29:14Z] openclaw restart done source=launchd-handoff mode=kickstart"]
+          : [],
+      );
+      const params = createBaseParams([]);
+
+      await appendStatusAllDiagnosis(params);
+
+      const output = params.lines.join("\n");
+      // 47 days old: rendered as a short date rather than presented as current.
+      expect(output).toContain("Gateway supervisor restart handoffs (tail; last entry Sep 1)");
+      expect(output).toContain("in-process SIGUSR1 reloads are not listed here");
+    } finally {
+      nowSpy.mockRestore();
       Object.defineProperty(process, "platform", { value: originalPlatform });
     }
   });
