@@ -577,6 +577,53 @@ describe("truncateOversizedToolResultsInMessages", () => {
     expect(lastText && getToolResultTextLength(lastText)).toBeLessThanOrEqual(12_000);
   });
 
+  it("keeps fresh tool results readable once frozen history exceeds the aggregate budget", () => {
+    // Frozen history is never re-trimmed, so the aggregate reduction used to land on the newest
+    // results and clear them to empty text the model had never seen.
+    const history: AgentMessage[] = [
+      makeUserMessage("review the repo"),
+      makeAssistantMessage("reading"),
+      makeToolResult("h".repeat(10_000), "history_1"),
+      makeAssistantMessage("reading more"),
+      makeToolResult("i".repeat(10_000), "history_2"),
+    ];
+    const projectionState = createToolResultPromptProjectionState();
+    truncateOversizedToolResultsInMessages(history, 128_000, 12_000, 12_000, projectionState);
+
+    const fresh = "ls output\n".repeat(50);
+    const next = truncateOversizedToolResultsInMessages(
+      [...history, makeAssistantMessage("listing"), makeToolResult(fresh, "fresh_1")],
+      128_000,
+      12_000,
+      12_000,
+      projectionState,
+    );
+
+    const last = next.messages.at(-1);
+    expect(last && getFirstToolResultText(last)).toBe(fresh);
+  });
+
+  it("leaves a notice when aggregate recovery clears a tool result", () => {
+    const messages: AgentMessage[] = [
+      makeUserMessage("hello"),
+      makeAssistantMessage("calling tools"),
+      makeToolResult("a".repeat(5_000), "call_1"),
+      makeToolResult("b".repeat(5_000), "call_2"),
+      makeToolResult("c".repeat(5_000), "call_3"),
+    ];
+
+    const { messages: result } = truncateOversizedToolResultsInMessages(
+      messages,
+      128_000,
+      12_000,
+      40,
+    );
+
+    for (const message of result.slice(2)) {
+      expect(getFirstToolResultText(message)).toMatch(/truncated/);
+    }
+  });
+
   it("does not restore filtered image blocks when reusing a projection", () => {
     const projectionState = createToolResultPromptProjectionState();
     const source = makeToolResult("x".repeat(15_000), "image_call");

@@ -399,6 +399,7 @@ export function truncateOversizedToolResultsInMessages(
     maxChars,
     aggregateBudgetChars,
     minKeepChars: RECOVERY_MIN_KEEP_CHARS,
+    protectTrailingToolResults: Boolean(projectionState),
   });
   if (projectionState) {
     for (const [index] of messages.entries()) {
@@ -596,8 +597,16 @@ function buildAggregateToolResultReplacements(params: {
   branch: ToolResultBranchEntry[];
   aggregateBudgetChars: number;
   minKeepChars?: number;
+  protectTrailingToolResults?: boolean;
 }): ToolResultReplacement[] {
   const minKeepChars = params.minKeepChars ?? MIN_KEEP_CHARS;
+  // Results after the last assistant message are ones the model has not read yet. Frozen
+  // history is never re-trimmed, so without this the whole aggregate reduction lands on them.
+  const trailingStart = params.protectTrailingToolResults
+    ? params.branch.findLastIndex(
+        (entry) => (entry.message as { role?: string } | undefined)?.role === "assistant",
+      ) + 1
+    : params.branch.length;
   const candidates = params.branch
     .map((entry, index) => ({ entry, index }))
     .filter(
@@ -616,7 +625,7 @@ function buildAggregateToolResultReplacements(params: {
       entryId: item.entry.id,
       message: item.entry.message,
       textLength: getToolResultTextLength(item.entry.message),
-      aggregateEligible: item.entry.aggregateEligible !== false,
+      aggregateEligible: item.entry.aggregateEligible !== false && item.index < trailingStart,
     }))
     .filter((item) => item.textLength > 0);
 
@@ -680,7 +689,10 @@ function buildAggregateToolResultReplacements(params: {
       const existingReplacement = replacements.find(
         (replacement) => replacement.entryId === candidate.entryId,
       );
-      const emptyMessage = clearToolResultText(existingReplacement?.message ?? candidate.message);
+      const emptyMessage = clearToolResultText(
+        existingReplacement?.message ?? candidate.message,
+        suffixFactory(candidate.textLength),
+      );
       const actualReduction = Math.max(
         0,
         candidate.textLength - getToolResultTextLength(emptyMessage),
@@ -704,18 +716,23 @@ function buildAggregateToolResultReplacements(params: {
   return replacements;
 }
 
-function clearToolResultText(message: AgentMessage): AgentMessage {
+function clearToolResultText(message: AgentMessage, notice: string): AgentMessage {
   const content = (message as { content?: unknown }).content;
   if (!Array.isArray(content)) {
     return message;
   }
+  // The first text block keeps the notice; an empty result reads as a tool that printed nothing.
+  let noticeWritten = false;
   return {
     ...message,
-    content: content.map((block) =>
-      block && typeof block === "object" && (block as { type?: unknown }).type === "text"
-        ? Object.assign({}, block, { text: "" })
-        : block,
-    ),
+    content: content.map((block) => {
+      if (!block || typeof block !== "object" || (block as { type?: unknown }).type !== "text") {
+        return block;
+      }
+      const text = noticeWritten ? "" : notice;
+      noticeWritten = true;
+      return Object.assign({}, block, { text });
+    }),
   } as AgentMessage;
 }
 
@@ -800,6 +817,7 @@ function buildToolResultReplacementPlan(params: {
   maxChars: number;
   aggregateBudgetChars: number;
   minKeepChars?: number;
+  protectTrailingToolResults?: boolean;
 }): {
   replacements: ToolResultReplacement[];
   oversizedReplacementCount: number;
@@ -825,6 +843,7 @@ function buildToolResultReplacementPlan(params: {
     branch: oversizedTrimmedBranch,
     aggregateBudgetChars: params.aggregateBudgetChars,
     minKeepChars,
+    protectTrailingToolResults: params.protectTrailingToolResults,
   });
   const aggregateReducibleChars = calculateReplacementReduction(
     oversizedTrimmedBranch,
